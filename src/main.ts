@@ -8,6 +8,7 @@ import { VictoryScene } from './scenes/VictoryScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
+  parent: document.body,
   width: GameConfig.WIDTH,
   height: GameConfig.HEIGHT,
   physics: {
@@ -22,6 +23,10 @@ const config: Phaser.Types.Core.GameConfig = {
     pixelArt: false,
     antialias: true,
     antialiasGL: true,
+  },
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
   },
 };
 
