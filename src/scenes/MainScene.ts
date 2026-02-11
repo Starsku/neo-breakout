@@ -173,7 +173,7 @@ export class MainScene extends Phaser.Scene {
     const brickY = brick.y;
     
     // Hit the brick and check if it's destroyed
-    const isDestroyed = !brick.hit();
+    const isDestroyed = brick.hit();
     
     if (isDestroyed) {
       const points = brick.getPoints();

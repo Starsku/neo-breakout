@@ -19,9 +19,10 @@ export class Brick extends Phaser.Physics.Arcade.Sprite {
     this.health = health;
     this.maxHealth = health;
 
-    this.setCollideWorldBounds(true);
-    this.setBounce(1, 1);
     this.setImmovable(true);
+    if (this.body) {
+      (this.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+    }
 
     this.drawBrick();
   }
