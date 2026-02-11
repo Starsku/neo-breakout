@@ -11,10 +11,11 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: document.body,
   width: GameConfig.WIDTH,
   height: GameConfig.HEIGHT,
+  backgroundColor: '#0a0a1a',
   physics: {
     default: 'arcade',
     arcade: {
-      gravity: { y: 0, x: 0 },
+      gravity: { x: 0, y: 0 },
       debug: false,
     },
   },
@@ -22,7 +23,6 @@ const config: Phaser.Types.Core.GameConfig = {
   render: {
     pixelArt: false,
     antialias: true,
-    antialiasGL: true,
   },
   scale: {
     mode: Phaser.Scale.FIT,
@@ -30,6 +30,4 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 };
 
-const game = new Phaser.Game(config);
-
-export default game;
+new Phaser.Game(config);

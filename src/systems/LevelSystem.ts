@@ -5,172 +5,31 @@ export interface BrickConfig {
   y: number;
   type: 'normal' | 'armored' | 'indestructible' | 'mobile';
   health?: number;
+  colorIndex?: number;
 }
 
 export class LevelSystem {
   private currentLevel: number = 1;
-  private levels: BrickConfig[][] = [];
-
-  constructor() {
-    this.generateLevels();
-  }
-
-  private generateLevels(): void {
-    // Level 1: Simple grid of normal bricks
-    this.levels[0] = this.generateSimpleGrid(3, 10, 'normal');
-
-    // Level 2: Mix of normal and armored bricks
-    this.levels[1] = [
-      ...this.generateSimpleGrid(3, 8, 'normal'),
-      ...this.generateArmoredLine(2, 'armored'),
-    ];
-
-    // Level 3: Add mobile bricks
-    this.levels[2] = [
-      ...this.generateSimpleGrid(2, 10, 'normal'),
-      ...this.generateArmoredLine(2, 'armored'),
-      ...this.generateMobileRow(2, 'mobile'),
-    ];
-
-    // Level 4: Complex layout with obstacles
-    this.levels[3] = this.generateComplexLayout();
-
-    // Level 5: Ultimate challenge
-    this.levels[4] = this.generateHardLayout();
-  }
-
-  private generateSimpleGrid(rows: number, cols: number, type: 'normal' | 'armored' | 'mobile'): BrickConfig[] {
-    const bricks: BrickConfig[] = [];
-    const startX = 50;
-    const startY = 50;
-    const width = GameConfig.BRICK_WIDTH + GameConfig.BRICK_PADDING_X;
-    const height = GameConfig.BRICK_HEIGHT + GameConfig.BRICK_PADDING_Y;
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        bricks.push({
-          x: startX + c * width,
-          y: startY + r * height,
-          type,
-          health: type === 'armored' ? 2 : 1,
-        });
-      }
-    }
-
-    return bricks;
-  }
-
-  private generateArmoredLine(row: number, type: 'armored'): BrickConfig[] {
-    const bricks: BrickConfig[] = [];
-    const startX = 50;
-    const startY = 50 + row * (GameConfig.BRICK_HEIGHT + GameConfig.BRICK_PADDING_Y);
-    const width = GameConfig.BRICK_WIDTH + GameConfig.BRICK_PADDING_X;
-
-    for (let c = 0; c < 10; c++) {
-      bricks.push({
-        x: startX + c * width,
-        y: startY,
-        type,
-        health: 2,
-      });
-    }
-
-    return bricks;
-  }
-
-  private generateMobileRow(row: number, type: 'mobile'): BrickConfig[] {
-    const bricks: BrickConfig[] = [];
-    const startX = 50;
-    const startY = 50 + row * (GameConfig.BRICK_HEIGHT + GameConfig.BRICK_PADDING_Y);
-    const width = GameConfig.BRICK_WIDTH + GameConfig.BRICK_PADDING_X;
-
-    for (let c = 0; c < 10; c++) {
-      bricks.push({
-        x: startX + c * width,
-        y: startY,
-        type,
-      });
-    }
-
-    return bricks;
-  }
-
-  private generateComplexLayout(): BrickConfig[] {
-    const bricks: BrickConfig[] = [];
-    const startX = 50;
-    const startY = 50;
-    const width = GameConfig.BRICK_WIDTH + GameConfig.BRICK_PADDING_X;
-    const height = GameConfig.BRICK_HEIGHT + GameConfig.BRICK_PADDING_Y;
-
-    // Outer walls
-    for (let c = 0; c < 10; c++) {
-      bricks.push({
-        x: startX + c * width,
-        y: startY,
-        type: 'indestructible',
-      });
-    }
-
-    // Inner pattern
-    for (let r = 1; r < 4; r++) {
-      for (let c = 0; c < 10; c++) {
-        if (c % 2 === 0 || r === 2) {
-          const typeArray: ('normal' | 'armored' | 'mobile')[] = ['normal', 'armored', 'mobile'];
-          bricks.push({
-            x: startX + c * width,
-            y: startY + r * height,
-            type: typeArray[r - 1] || 'normal',
-            health: typeArray[r - 1] === 'armored' ? 2 : 1,
-          });
-        }
-      }
-    }
-
-    return bricks;
-  }
-
-  private generateHardLayout(): BrickConfig[] {
-    const bricks: BrickConfig[] = [];
-    const startX = 50;
-    const startY = 50;
-    const width = GameConfig.BRICK_WIDTH + GameConfig.BRICK_PADDING_X;
-    const height = GameConfig.BRICK_HEIGHT + GameConfig.BRICK_PADDING_Y;
-
-    // Dense pattern
-    for (let r = 0; r < 5; r++) {
-      for (let c = 0; c < 10; c++) {
-        let type: 'normal' | 'armored' | 'indestructible' | 'mobile';
-
-        if (r === 0 || r === 4) {
-          type = 'indestructible';
-        } else if (c === 0 || c === 9) {
-          type = 'indestructible';
-        } else if (r % 2 === 0) {
-          type = 'armored';
-        } else if (c % 3 === 0) {
-          type = 'mobile';
-        } else {
-          type = 'normal';
-        }
-
-        bricks.push({
-          x: startX + c * width,
-          y: startY + r * height,
-          type,
-          health: type === 'armored' ? 3 : 1,
-        });
-      }
-    }
-
-    return bricks;
-  }
 
   getCurrentLevel(): number {
     return this.currentLevel;
   }
 
   getBrickLayout(): BrickConfig[] {
-    return this.levels[Math.min(this.currentLevel - 1, this.levels.length - 1)] || [];
+    switch (this.currentLevel) {
+      case 1:
+        return this.level1();
+      case 2:
+        return this.level2();
+      case 3:
+        return this.level3();
+      case 4:
+        return this.level4();
+      case 5:
+        return this.level5();
+      default:
+        return this.level1();
+    }
   }
 
   nextLevel(): void {
@@ -189,5 +48,137 @@ export class LevelSystem {
 
   getSpeedMultiplier(): number {
     return Math.pow(GameConfig.LEVEL_SPEED_MULTIPLIER, this.currentLevel - 1);
+  }
+
+  // Helper: create a brick at grid position
+  private b(
+    col: number,
+    row: number,
+    type: BrickConfig['type'] = 'normal',
+    health?: number,
+    colorIndex: number = 0
+  ): BrickConfig {
+    return {
+      x:
+        GameConfig.BRICK_OFFSET_LEFT +
+        col * (GameConfig.BRICK_WIDTH + GameConfig.BRICK_PADDING_X) +
+        GameConfig.BRICK_WIDTH / 2,
+      y:
+        GameConfig.BRICK_OFFSET_TOP +
+        row * (GameConfig.BRICK_HEIGHT + GameConfig.BRICK_PADDING_Y) +
+        GameConfig.BRICK_HEIGHT / 2,
+      type,
+      health: health ?? (type === 'armored' ? 2 : 1),
+      colorIndex,
+    };
+  }
+
+  // ───────────────── Level 1: Rainbow Intro ─────────────────
+  private level1(): BrickConfig[] {
+    const bricks: BrickConfig[] = [];
+    for (let row = 0; row < 5; row++) {
+      for (let col = 0; col < 10; col++) {
+        bricks.push(this.b(col, row, 'normal', 1, row));
+      }
+    }
+    return bricks;
+  }
+
+  // ───────────────── Level 2: Armored Shield ─────────────────
+  private level2(): BrickConfig[] {
+    const bricks: BrickConfig[] = [];
+    // Top 2 rows: armored
+    for (let col = 0; col < 10; col++) {
+      bricks.push(this.b(col, 0, 'armored', 2, 0));
+      bricks.push(this.b(col, 1, 'armored', 2, 1));
+    }
+    // Bottom 3 rows: normal rainbow
+    for (let row = 2; row < 5; row++) {
+      for (let col = 0; col < 10; col++) {
+        bricks.push(this.b(col, row, 'normal', 1, row - 2));
+      }
+    }
+    return bricks;
+  }
+
+  // ───────────────── Level 3: Moving Targets ─────────────────
+  private level3(): BrickConfig[] {
+    const bricks: BrickConfig[] = [];
+    // Row 0: indestructible walls on sides
+    bricks.push(this.b(0, 0, 'indestructible'));
+    bricks.push(this.b(9, 0, 'indestructible'));
+    // Row 0 center: armored
+    for (let col = 2; col < 8; col++) {
+      bricks.push(this.b(col, 0, 'armored', 2, col % 3));
+    }
+    // Row 1-2: mobile bricks
+    for (let row = 1; row <= 2; row++) {
+      for (let col = 1; col < 9; col++) {
+        bricks.push(this.b(col, row, 'mobile', 1, col % 4));
+      }
+    }
+    // Row 3-4: normal
+    for (let row = 3; row < 5; row++) {
+      for (let col = 0; col < 10; col++) {
+        bricks.push(this.b(col, row, 'normal', 1, row));
+      }
+    }
+    return bricks;
+  }
+
+  // ───────────────── Level 4: Fortress ─────────────────
+  private level4(): BrickConfig[] {
+    const bricks: BrickConfig[] = [];
+    // Indestructible frame
+    for (let col = 0; col < 10; col++) {
+      bricks.push(this.b(col, 0, 'indestructible'));
+    }
+    for (let row = 1; row < 6; row++) {
+      bricks.push(this.b(0, row, 'indestructible'));
+      bricks.push(this.b(9, row, 'indestructible'));
+    }
+    // Inner: armored core
+    for (let row = 1; row < 4; row++) {
+      for (let col = 1; col < 9; col++) {
+        if (row === 2 && col >= 3 && col <= 6) {
+          bricks.push(this.b(col, row, 'armored', 3, col));
+        } else {
+          bricks.push(this.b(col, row, 'normal', 1, (row + col) % 5));
+        }
+      }
+    }
+    // Mobile row
+    for (let col = 2; col < 8; col++) {
+      bricks.push(this.b(col, 4, 'mobile', 1, col % 4));
+    }
+    // Bottom normal
+    for (let col = 1; col < 9; col++) {
+      bricks.push(this.b(col, 5, 'normal', 1, col % 5));
+    }
+    return bricks;
+  }
+
+  // ───────────────── Level 5: Chaos ─────────────────
+  private level5(): BrickConfig[] {
+    const bricks: BrickConfig[] = [];
+    for (let row = 0; row < 7; row++) {
+      for (let col = 0; col < 10; col++) {
+        // Diamond pattern of indestructible
+        const cx = 4.5,
+          cy = 3;
+        const dist = Math.abs(col - cx) + Math.abs(row - cy);
+
+        if (dist <= 1.5) {
+          bricks.push(this.b(col, row, 'armored', 3, col));
+        } else if (row === 0 || row === 6 || col === 0 || col === 9) {
+          bricks.push(this.b(col, row, 'indestructible'));
+        } else if ((row + col) % 3 === 0) {
+          bricks.push(this.b(col, row, 'mobile', 1, (row * col) % 4));
+        } else {
+          bricks.push(this.b(col, row, 'normal', 1, (row + col) % 5));
+        }
+      }
+    }
+    return bricks;
   }
 }

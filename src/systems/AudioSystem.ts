@@ -1,138 +1,88 @@
-import { Howl } from 'howler';
-
 export class AudioSystem {
-  private audioContext: AudioContext | null = null;
-  private masterVolume: number = 0.5;
-  private bgMusic: Howl | null = null;
-  private sounds: Map<string, Howl> = new Map();
+  private ctx: AudioContext | null = null;
+  private volume: number = 0.4;
 
   constructor() {
-    this.initAudioContext();
-  }
-
-  private initAudioContext(): void {
-    if (typeof window !== 'undefined') {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    try {
+      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch {
+      // No audio support
     }
   }
 
-  private generateTone(frequency: number, duration: number): AudioBuffer | null {
-    if (!this.audioContext) return null;
+  private tone(freq: number, duration: number, type: OscillatorType = 'sine', vol?: number): void {
+    if (!this.ctx) return;
+    try {
+      if (this.ctx.state === 'suspended') this.ctx.resume();
 
-    const ctx = this.audioContext;
-    const sampleRate = ctx.sampleRate;
-    const samples = duration * sampleRate;
-    const buffer = ctx.createBuffer(1, samples, sampleRate);
-    const data = buffer.getChannelData(0);
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
 
-    for (let i = 0; i < samples; i++) {
-      const t = i / sampleRate;
-      const envelope = Math.exp(-3 * t / duration);
-      data[i] = Math.sin(2 * Math.PI * frequency * t) * envelope * 0.3;
+      const now = this.ctx.currentTime;
+      const v = (vol ?? this.volume) * 0.3;
+      gain.gain.setValueAtTime(v, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      osc.frequency.setValueAtTime(freq, now);
+      osc.start(now);
+      osc.stop(now + duration);
+    } catch {
+      // Silently ignore audio errors
     }
-
-    return buffer;
   }
 
-  playSoundEffect(type: 'paddle' | 'brick' | 'armor' | 'powerup' | 'loss', combo: number = 0): void {
-    if (!this.audioContext) return;
-
-    const ctx = this.audioContext;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    gain.gain.value = this.masterVolume * 0.5;
+  playSoundEffect(
+    type: 'paddle' | 'brick' | 'armor' | 'powerup' | 'loss' | 'launch' | 'levelup',
+    combo: number = 0
+  ): void {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
 
     switch (type) {
       case 'paddle': {
-        const baseFreq = 400 + (combo * 20);
-        osc.frequency.setValueAtTime(baseFreq, now);
-        osc.frequency.exponentialRampToValueAtTime(300, now + 0.1);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        osc.start(now);
-        osc.stop(now + 0.1);
+        const f = 300 + combo * 15;
+        this.tone(f, 0.08, 'triangle');
         break;
       }
       case 'brick': {
-        osc.frequency.setValueAtTime(800, now);
-        osc.frequency.exponentialRampToValueAtTime(400, now + 0.08);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
-        osc.start(now);
-        osc.stop(now + 0.08);
+        const f = 600 + combo * 20;
+        this.tone(f, 0.06, 'square', this.volume * 0.5);
         break;
       }
       case 'armor': {
-        osc.frequency.setValueAtTime(600, now);
-        osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
-        osc.frequency.exponentialRampToValueAtTime(400, now + 0.15);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.15);
+        this.tone(200, 0.1, 'sawtooth', this.volume * 0.4);
+        setTimeout(() => this.tone(300, 0.06, 'square', this.volume * 0.3), 50);
         break;
       }
       case 'powerup': {
-        osc.frequency.setValueAtTime(1000, now);
-        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.05);
-        osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-        osc.start(now);
-        osc.stop(now + 0.15);
+        this.tone(800, 0.08, 'sine');
+        setTimeout(() => this.tone(1000, 0.08, 'sine'), 60);
+        setTimeout(() => this.tone(1200, 0.1, 'sine'), 120);
         break;
       }
       case 'loss': {
-        osc.frequency.setValueAtTime(400, now);
-        osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-        osc.start(now);
-        osc.stop(now + 0.3);
+        this.tone(300, 0.15, 'sawtooth');
+        setTimeout(() => this.tone(200, 0.2, 'sawtooth'), 100);
+        setTimeout(() => this.tone(100, 0.3, 'sawtooth'), 200);
+        break;
+      }
+      case 'launch': {
+        this.tone(500, 0.1, 'triangle');
+        break;
+      }
+      case 'levelup': {
+        this.tone(600, 0.1, 'sine');
+        setTimeout(() => this.tone(800, 0.1, 'sine'), 100);
+        setTimeout(() => this.tone(1000, 0.15, 'sine'), 200);
+        setTimeout(() => this.tone(1200, 0.2, 'sine'), 300);
         break;
       }
     }
   }
 
-  playBackgroundMusic(): void {
-    if (this.bgMusic) {
-      this.bgMusic.play();
-      return;
-    }
-
-    // Simple background music using Web Audio API
-    if (!this.audioContext) return;
-
-    const ctx = this.audioContext;
-    const notes = [262, 294, 330, 349]; // C, D, E, F
-    let noteIndex = 0;
-
-    const playNote = () => {
-      const now = ctx.currentTime;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      gain.gain.value = this.masterVolume * 0.1;
-
-      osc.frequency.value = notes[noteIndex % notes.length];
-      osc.start(now);
-      osc.stop(now + 0.3);
-
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-
-      noteIndex++;
-      setTimeout(playNote, 400);
-    };
-
-    playNote();
-  }
-
-  setMasterVolume(volume: number): void {
-    this.masterVolume = Math.max(0, Math.min(1, volume));
-  }
-
-  getMasterVolume(): number {
-    return this.masterVolume;
+  setVolume(v: number): void {
+    this.volume = Math.max(0, Math.min(1, v));
   }
 }

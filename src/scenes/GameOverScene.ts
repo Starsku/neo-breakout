@@ -2,94 +2,117 @@ import Phaser from 'phaser';
 import { GameConfig } from '../config/GameConfig';
 
 export class GameOverScene extends Phaser.Scene {
+  private score: number = 0;
+  private highScore: number = 0;
+
   constructor() {
     super({ key: 'GameOverScene' });
   }
 
   init(data: any): void {
-    this.registry.set('score', data.score);
-    this.registry.set('highScore', data.highScore);
+    this.score = data.score ?? 0;
+    this.highScore = data.highScore ?? 0;
   }
 
   create(): void {
-    // Background
-    const graphics = this.make.graphics({ x: 0, y: 0, add: false } as any);
-    graphics.fillStyle(GameConfig.COLORS.BG, 1);
-    graphics.fillRect(0, 0, GameConfig.WIDTH, GameConfig.HEIGHT);
-    graphics.generateTexture('gameover-bg', GameConfig.WIDTH, GameConfig.HEIGHT);
-    graphics.destroy();
-    this.add.sprite(GameConfig.WIDTH / 2, GameConfig.HEIGHT / 2, 'gameover-bg');
+    const W = GameConfig.WIDTH;
+    const H = GameConfig.HEIGHT;
+    const isNewRecord = this.score === this.highScore && this.score > 0;
+
+    // Dark background
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0a0008, 1);
+    bg.fillRect(0, 0, W, H);
+    bg.lineStyle(2, GameConfig.COLORS.UI_DANGER, 0.3);
+    bg.strokeRect(1, 1, W - 2, H - 2);
 
     // Title
-    this.add.text(GameConfig.WIDTH / 2, 80, 'GAME OVER', {
-      font: 'bold 60px Arial',
-      color: '#ff0000',
-      align: 'center',
-    }).setOrigin(0.5, 0.5);
+    this.add.text(W / 2, 100, 'GAME OVER', {
+      font: 'bold 54px "Segoe UI", Arial',
+      color: '#ff4466',
+    }).setOrigin(0.5);
 
     // Score
-    const score = this.registry.get('score');
-    this.add.text(GameConfig.WIDTH / 2, 200, `Score: ${score}`, {
-      font: 'bold 32px Arial',
+    this.add.text(W / 2, 200, `SCORE`, {
+      font: '16px Arial',
+      color: '#888899',
+    }).setOrigin(0.5);
+
+    const scoreText = this.add.text(W / 2, 240, `${this.score}`, {
+      font: 'bold 48px Arial',
       color: '#ffffff',
-      align: 'center',
-    }).setOrigin(0.5, 0.5);
+    }).setOrigin(0.5);
 
-    // High Score
-    const highScore = this.registry.get('highScore');
-    this.add.text(GameConfig.WIDTH / 2, 260, `High Score: ${highScore}`, {
-      font: 'bold 28px Arial',
-      color: '#ffff00',
-      align: 'center',
-    }).setOrigin(0.5, 0.5);
+    // Animate score counting up
+    const counter = { val: 0 };
+    this.tweens.add({
+      targets: counter,
+      val: this.score,
+      duration: 1000,
+      ease: 'Power2',
+      onUpdate: () => {
+        scoreText.setText(`${Math.floor(counter.val)}`);
+      },
+    });
 
-    // New record notification
-    if (score === highScore && score > 0) {
-      this.add.text(GameConfig.WIDTH / 2, 320, '🎉 NEW RECORD! 🎉', {
-        font: 'bold 24px Arial',
-        color: '#00ff00',
-        align: 'center',
-      }).setOrigin(0.5, 0.5);
+    // High score
+    this.add.text(W / 2, 300, `HIGH SCORE: ${this.highScore}`, {
+      font: 'bold 20px Arial',
+      color: '#ffee44',
+    }).setOrigin(0.5);
+
+    if (isNewRecord) {
+      const record = this.add.text(W / 2, 340, '★ NEW RECORD ★', {
+        font: 'bold 22px Arial',
+        color: '#ff44aa',
+      }).setOrigin(0.5);
+      this.tweens.add({
+        targets: record,
+        scale: { from: 1, to: 1.15 },
+        alpha: { from: 1, to: 0.7 },
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+      });
     }
 
     // Retry button
-    const retryButton = this.add.text(GameConfig.WIDTH / 2, GameConfig.HEIGHT - 140, 'RETRY', {
-      font: 'bold 30px Arial',
-      color: '#00ff00',
-      align: 'center',
-      backgroundColor: '#003300',
-      padding: { x: 30, y: 15 },
-    })
-      .setOrigin(0.5, 0.5)
-      .setInteractive()
-      .on('pointerover', () => {
-        retryButton.setScale(1.1);
-      })
-      .on('pointerout', () => {
-        retryButton.setScale(1);
-      })
-      .on('pointerdown', () => {
-        this.scene.start('MainScene');
-      });
+    this.createButton(W / 2, H - 140, 'RETRY', GameConfig.COLORS.NEON_GREEN, () => {
+      this.scene.start('MainScene');
+    });
 
     // Menu button
-    const menuButton = this.add.text(GameConfig.WIDTH / 2, GameConfig.HEIGHT - 60, 'MENU', {
-      font: 'bold 30px Arial',
-      color: '#ff0000',
-      align: 'center',
-      backgroundColor: '#330000',
-      padding: { x: 30, y: 15 },
-    })
-      .setOrigin(0.5, 0.5)
-      .setInteractive()
-      .on('pointerover', () => {
-        menuButton.setScale(1.1);
-      })
-      .on('pointerout', () => {
-        menuButton.setScale(1);
-      })
-      .on('pointerdown', () => {
-        this.scene.start('MenuScene');
-      });
+    this.createButton(W / 2, H - 70, 'MENU', GameConfig.COLORS.NEON_BLUE, () => {
+      this.scene.start('MenuScene');
+    });
+
+    // SPACE to retry
+    this.input.keyboard?.on('keydown-SPACE', () => {
+      this.scene.start('MainScene');
+    });
+  }
+
+  private createButton(x: number, y: number, label: string, color: number, onClick: () => void): void {
+    const g = this.add.graphics();
+    const w = 180, h = 50;
+    const drawBtn = (hover: boolean) => {
+      g.clear();
+      g.fillStyle(hover ? 0x222244 : 0x111133, 1);
+      g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+      g.lineStyle(2, color, hover ? 1 : 0.6);
+      g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+    };
+    drawBtn(false);
+
+    const colorStr = '#' + color.toString(16).padStart(6, '0');
+    const text = this.add.text(x, y, label, {
+      font: 'bold 22px "Segoe UI", Arial',
+      color: colorStr,
+    }).setOrigin(0.5);
+
+    const hit = this.add.rectangle(x, y, w, h).setInteractive();
+    hit.on('pointerover', () => drawBtn(true));
+    hit.on('pointerout', () => drawBtn(false));
+    hit.on('pointerdown', onClick);
   }
 }

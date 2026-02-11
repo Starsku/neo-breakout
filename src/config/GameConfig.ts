@@ -2,31 +2,36 @@ export const GameConfig = {
   // Canvas
   WIDTH: 800,
   HEIGHT: 600,
-  
+
   // Game
-  BALL_SPEED_BASE: 400,
-  BALL_RADIUS: 5,
-  PADDLE_WIDTH: 80,
-  PADDLE_HEIGHT: 12,
-  PADDLE_SPEED: 500,
-  
+  LIVES: 3,
+  BALL_SPEED_BASE: 350,
+  BALL_RADIUS: 6,
+  PADDLE_WIDTH: 100,
+  PADDLE_HEIGHT: 14,
+  PADDLE_SPEED: 600,
+  PADDLE_Y: 560,
+
   // Bricks
-  BRICK_WIDTH: 70,
-  BRICK_HEIGHT: 12,
-  BRICK_PADDING_X: 5,
-  BRICK_PADDING_Y: 5,
-  
+  BRICK_WIDTH: 64,
+  BRICK_HEIGHT: 20,
+  BRICK_PADDING_X: 6,
+  BRICK_PADDING_Y: 6,
+  BRICK_OFFSET_TOP: 60,
+  BRICK_OFFSET_LEFT: 55,
+
   // Levels
   LEVEL_COUNT: 5,
-  LEVEL_SPEED_MULTIPLIER: 1.1,
-  INTRA_LEVEL_ACCELERATION: 1.02,
+  LEVEL_SPEED_MULTIPLIER: 1.08,
+  INTRA_LEVEL_ACCELERATION: 1.015,
   ACCELERATION_THRESHOLD: 5,
-  
+
   // Power-ups
-  POWERUP_SIZE: 16,
-  POWERUP_SPEED: 150,
-  POWERUP_SPAWN_CHANCE: 0.15,
-  
+  POWERUP_SIZE: 20,
+  POWERUP_SPEED: 120,
+  POWERUP_SPAWN_CHANCE: 0.2,
+  POWERUP_DURATION: 8000,
+
   // Scoring
   SCORES: {
     NORMAL: 10,
@@ -34,15 +39,23 @@ export const GameConfig = {
     INDESTRUCTIBLE: 0,
     MOBILE: 15,
   },
-  
-  // Colors
+
+  // Neon color palette
   COLORS: {
-    NORMAL: 0x00ff00,
-    ARMORED: 0xff6600,
-    INDESTRUCTIBLE: 0x555555,
-    MOBILE: 0x00ffff,
+    NORMAL: 0x00ff88,
+    ARMORED: 0xff6622,
+    INDESTRUCTIBLE: 0x666688,
+    MOBILE: 0x00ccff,
     PADDLE: 0xffffff,
-    BALL: 0xffff00,
-    BG: 0x1a1a2e,
+    BALL: 0xffee44,
+    BG: 0x0a0a1a,
+    UI_PRIMARY: 0x00ff88,
+    UI_ACCENT: 0xffee44,
+    UI_DANGER: 0xff4466,
+    NEON_PINK: 0xff44aa,
+    NEON_BLUE: 0x44aaff,
+    NEON_GREEN: 0x44ff88,
+    NEON_PURPLE: 0xaa44ff,
+    NEON_ORANGE: 0xff8844,
   },
 } as const;

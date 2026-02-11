@@ -3,92 +3,138 @@ import { GameConfig } from '../config/GameConfig';
 import { ScoreSystem } from '../systems/ScoreSystem';
 
 export class MenuScene extends Phaser.Scene {
-  private scoreSystem!: ScoreSystem;
-
   constructor() {
     super({ key: 'MenuScene' });
   }
 
-  preload(): void {
-    // Preload any assets if needed
-  }
-
   create(): void {
-    this.scoreSystem = new ScoreSystem();
+    const W = GameConfig.WIDTH;
+    const H = GameConfig.HEIGHT;
+    const scoreSystem = new ScoreSystem();
 
-    // Background gradient
-    const graphics = this.make.graphics({ x: 0, y: 0, add: false } as any);
-    graphics.fillStyle(GameConfig.COLORS.BG, 1);
-    graphics.fillRect(0, 0, GameConfig.WIDTH, GameConfig.HEIGHT);
-    graphics.generateTexture('menu-bg', GameConfig.WIDTH, GameConfig.HEIGHT);
-    graphics.destroy();
-    this.add.sprite(GameConfig.WIDTH / 2, GameConfig.HEIGHT / 2, 'menu-bg');
+    // Background
+    const bg = this.add.graphics();
+    for (let y = 0; y < H; y += 2) {
+      const t = y / H;
+      const r = Math.floor(8 + t * 12);
+      const g = Math.floor(8 + t * 8);
+      const b = Math.floor(20 + t * 30);
+      bg.fillStyle(Phaser.Display.Color.GetColor(r, g, b), 1);
+      bg.fillRect(0, y, W, 2);
+    }
 
-    // Title
-    this.add.text(GameConfig.WIDTH / 2, 80, 'Neo-Breakout', {
-      font: 'bold 60px Arial',
-      color: '#00ff00',
+    // Animated grid
+    const grid = this.add.graphics();
+    grid.lineStyle(1, 0x1a1a3e, 0.15);
+    for (let x = 0; x < W; x += 40) grid.lineBetween(x, 0, x, H);
+    for (let y = 0; y < H; y += 40) grid.lineBetween(0, y, W, y);
+
+    // Neon border
+    bg.lineStyle(2, GameConfig.COLORS.NEON_BLUE, 0.4);
+    bg.strokeRect(1, 1, W - 2, H - 2);
+
+    // Title with glow
+    const titleGlow = this.add.text(W / 2, 100, 'NEO-BREAKOUT', {
+      font: 'bold 56px "Segoe UI", Arial',
+      color: '#00ff88',
       align: 'center',
-    }).setOrigin(0.5, 0.5);
+    }).setOrigin(0.5).setAlpha(0.3).setScale(1.05);
+
+    const title = this.add.text(W / 2, 100, 'NEO-BREAKOUT', {
+      font: 'bold 56px "Segoe UI", Arial',
+      color: '#00ff88',
+      align: 'center',
+    }).setOrigin(0.5);
+
+    // Pulse glow
+    this.tweens.add({
+      targets: titleGlow,
+      alpha: { from: 0.15, to: 0.4 },
+      scale: { from: 1.03, to: 1.08 },
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+    });
 
     // Subtitle
-    this.add.text(GameConfig.WIDTH / 2, 150, 'Brick Breaker Game', {
-      font: '20px Arial',
-      color: '#ffffff',
-      align: 'center',
-    }).setOrigin(0.5, 0.5);
+    this.add.text(W / 2, 160, 'BRICK BREAKER', {
+      font: '18px Arial',
+      color: '#44aaff',
+      letterSpacing: 8,
+    } as any).setOrigin(0.5);
 
-    // High Score
-    const highScore = this.scoreSystem.getHighScore();
-    this.add.text(GameConfig.WIDTH / 2, 220, `High Score: ${highScore}`, {
-      font: '24px Arial',
-      color: '#ffff00',
-      align: 'center',
-    }).setOrigin(0.5, 0.5);
+    // High score
+    const hs = scoreSystem.getHighScore();
+    if (hs > 0) {
+      this.add.text(W / 2, 210, `HIGH SCORE: ${hs}`, {
+        font: 'bold 22px Arial',
+        color: '#ffee44',
+      }).setOrigin(0.5);
+    }
 
     // Play button
-    const playButton = this.add.text(GameConfig.WIDTH / 2, 350, 'PLAY', {
-      font: 'bold 40px Arial',
-      color: '#00ff00',
-      align: 'center',
-      backgroundColor: '#003300',
-      padding: { x: 40, y: 20 },
-    })
-      .setOrigin(0.5, 0.5)
-      .setInteractive()
-      .on('pointerover', () => {
-        playButton.setScale(1.1);
-        playButton.setStyle({ color: '#00ff00', backgroundColor: '#005500' });
-      })
-      .on('pointerout', () => {
-        playButton.setScale(1);
-        playButton.setStyle({ color: '#00ff00', backgroundColor: '#003300' });
-      })
-      .on('pointerdown', () => {
-        this.scene.start('MainScene', { scoreSystem: this.scoreSystem });
-      });
+    const btnBg = this.add.graphics();
+    btnBg.fillStyle(0x003322, 1);
+    btnBg.fillRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+    btnBg.lineStyle(2, GameConfig.COLORS.NEON_GREEN, 0.8);
+    btnBg.strokeRoundedRect(W / 2 - 100, 290, 200, 60, 10);
 
-    // Instructions
-    const instructions = [
-      'Arrow Keys / ZQSD - Move Paddle',
-      'Mouse - Follow Paddle Position',
-      'Touch - Drag Paddle',
-      'ESC - Pause Game',
-      'Destroy all bricks to advance!',
+    const playText = this.add.text(W / 2, 320, '▶  PLAY', {
+      font: 'bold 28px "Segoe UI", Arial',
+      color: '#44ff88',
+    }).setOrigin(0.5);
+
+    const hitArea = this.add.rectangle(W / 2, 320, 200, 60).setInteractive();
+    hitArea.on('pointerover', () => {
+      playText.setColor('#88ffbb');
+      btnBg.clear();
+      btnBg.fillStyle(0x005533, 1);
+      btnBg.fillRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+      btnBg.lineStyle(2, GameConfig.COLORS.NEON_GREEN, 1);
+      btnBg.strokeRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+    });
+    hitArea.on('pointerout', () => {
+      playText.setColor('#44ff88');
+      btnBg.clear();
+      btnBg.fillStyle(0x003322, 1);
+      btnBg.fillRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+      btnBg.lineStyle(2, GameConfig.COLORS.NEON_GREEN, 0.8);
+      btnBg.strokeRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+    });
+    hitArea.on('pointerdown', () => {
+      this.scene.start('MainScene');
+    });
+
+    // SPACE to play
+    this.input.keyboard?.on('keydown-SPACE', () => {
+      this.scene.start('MainScene');
+    });
+
+    // Controls info
+    const controls = [
+      ['← → / Q D', 'Move paddle'],
+      ['MOUSE', 'Aim paddle'],
+      ['SPACE / CLICK', 'Launch ball / Fire laser'],
+      ['ESC', 'Pause'],
     ];
 
-    let yPos = 450;
-    instructions.forEach((text) => {
-      this.add.text(GameConfig.WIDTH / 2, yPos, text, {
-        font: '14px Arial',
-        color: '#cccccc',
-        align: 'center',
-      }).setOrigin(0.5, 0);
-      yPos += 25;
+    let yPos = 400;
+    controls.forEach(([key, desc]) => {
+      this.add.text(W / 2 - 100, yPos, key, {
+        font: 'bold 13px Arial',
+        color: '#44ff88',
+      });
+      this.add.text(W / 2 + 20, yPos, desc, {
+        font: '13px Arial',
+        color: '#aaaacc',
+      });
+      yPos += 24;
     });
-  }
 
-  update(): void {
-    // Spacebar is handled via the Play button click
+    // Footer
+    this.add.text(W / 2, H - 20, 'v2.0 — 5 Levels • 4 Power-ups • Neon Style', {
+      font: '11px Arial',
+      color: '#555577',
+    }).setOrigin(0.5);
   }
 }

@@ -2,89 +2,124 @@ import Phaser from 'phaser';
 import { GameConfig } from '../config/GameConfig';
 
 export class Paddle extends Phaser.Physics.Arcade.Sprite {
-  private leftKey?: Phaser.Input.Keyboard.Key;
-  private rightKey?: Phaser.Input.Keyboard.Key;
-  private moveLeft: boolean = false;
-  private moveRight: boolean = false;
+  private moveLeftActive: boolean = false;
+  private moveRightActive: boolean = false;
   private baseWidth: number = GameConfig.PADDLE_WIDTH;
+  private glow: Phaser.GameObjects.Graphics;
+  private static textureCreated = false;
 
   constructor(scene: Phaser.Scene) {
     const startX = GameConfig.WIDTH / 2;
-    const startY = GameConfig.HEIGHT - 30;
+    const startY = GameConfig.PADDLE_Y;
 
-    super(scene, startX, startY, '');
+    // Create texture once
+    if (!Paddle.textureCreated) {
+      const g = scene.make.graphics({ add: false } as any);
+      const w = GameConfig.PADDLE_WIDTH;
+      const h = GameConfig.PADDLE_HEIGHT;
+      // Glow
+      g.fillStyle(GameConfig.COLORS.NEON_BLUE, 0.15);
+      g.fillRoundedRect(-4, -4, w + 8, h + 8, 6);
+      g.fillStyle(GameConfig.COLORS.NEON_BLUE, 0.3);
+      g.fillRoundedRect(-2, -2, w + 4, h + 4, 5);
+      // Main body
+      g.fillStyle(0x1a2a4a, 1);
+      g.fillRoundedRect(0, 0, w, h, 4);
+      // Top highlight
+      g.fillStyle(GameConfig.COLORS.NEON_BLUE, 0.8);
+      g.fillRoundedRect(2, 1, w - 4, 3, 2);
+      // Edge accents
+      g.fillStyle(GameConfig.COLORS.NEON_PINK, 0.6);
+      g.fillRoundedRect(0, 0, 6, h, 3);
+      g.fillRoundedRect(w - 6, 0, 6, h, 3);
+      g.generateTexture('paddle-tex', w + 8, h + 8);
+      g.destroy();
+      Paddle.textureCreated = true;
+    }
+
+    super(scene, startX, startY, 'paddle-tex');
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     this.setCollideWorldBounds(true);
     this.setImmovable(true);
-    this.setData('width', this.baseWidth);
-    this.setData('height', GameConfig.PADDLE_HEIGHT);
+    this.setDepth(5);
+    this.body!.setSize(this.baseWidth, GameConfig.PADDLE_HEIGHT);
+
+    // Glow effect
+    this.glow = scene.add.graphics();
+    this.glow.setDepth(4);
 
     // Keyboard setup
     if (scene.input.keyboard) {
-      this.leftKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
-      this.rightKey = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
+      scene.input.keyboard.on('keydown-LEFT', () => (this.moveLeftActive = true));
+      scene.input.keyboard.on('keyup-LEFT', () => (this.moveLeftActive = false));
+      scene.input.keyboard.on('keydown-RIGHT', () => (this.moveRightActive = true));
+      scene.input.keyboard.on('keyup-RIGHT', () => (this.moveRightActive = false));
 
-      const keyA = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
-      const keyQ = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Q);
-      const keyD = scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
-
-      scene.input.keyboard.on('keydown-LEFT', () => (this.moveLeft = true));
-      scene.input.keyboard.on('keyup-LEFT', () => (this.moveLeft = false));
-      scene.input.keyboard.on('keydown-RIGHT', () => (this.moveRight = true));
-      scene.input.keyboard.on('keyup-RIGHT', () => (this.moveRight = false));
-
-      scene.input.keyboard.on('keydown-A', () => (this.moveLeft = true));
-      scene.input.keyboard.on('keyup-A', () => (this.moveLeft = false));
-      scene.input.keyboard.on('keydown-Q', () => (this.moveLeft = true));
-      scene.input.keyboard.on('keyup-Q', () => (this.moveLeft = false));
-      scene.input.keyboard.on('keydown-D', () => (this.moveRight = true));
-      scene.input.keyboard.on('keyup-D', () => (this.moveRight = false));
+      scene.input.keyboard.on('keydown-Q', () => (this.moveLeftActive = true));
+      scene.input.keyboard.on('keyup-Q', () => (this.moveLeftActive = false));
+      scene.input.keyboard.on('keydown-A', () => (this.moveLeftActive = true));
+      scene.input.keyboard.on('keyup-A', () => (this.moveLeftActive = false));
+      scene.input.keyboard.on('keydown-D', () => (this.moveRightActive = true));
+      scene.input.keyboard.on('keyup-D', () => (this.moveRightActive = false));
     }
 
-    // Mouse/Touch input
+    // Mouse/Touch
     scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      this.x = Phaser.Math.Clamp(pointer.x, this.width / 2, GameConfig.WIDTH - this.width / 2);
+      if (pointer.isDown || !scene.input.keyboard) {
+        this.x = Phaser.Math.Clamp(
+          pointer.x,
+          this.baseWidth / 2 + 10,
+          GameConfig.WIDTH - this.baseWidth / 2 - 10
+        );
+      } else {
+        this.x = Phaser.Math.Clamp(
+          pointer.x,
+          this.baseWidth / 2 + 10,
+          GameConfig.WIDTH - this.baseWidth / 2 - 10
+        );
+      }
     });
-
-    this.drawPaddle();
   }
 
-  private drawPaddle(): void {
-    const graphics = this.scene.make.graphics({ x: 0, y: 0, add: false } as any);
-    graphics.fillStyle(GameConfig.COLORS.PADDLE, 1);
-    graphics.fillRect(0, 0, this.baseWidth, GameConfig.PADDLE_HEIGHT);
-    graphics.generateTexture('paddle', this.baseWidth, GameConfig.PADDLE_HEIGHT);
-    graphics.destroy();
-    this.setTexture('paddle');
-  }
+  public updatePaddle(delta: number): void {
+    const speed = GameConfig.PADDLE_SPEED * (delta / 1000);
 
-  public update(): void {
-    const speed = GameConfig.PADDLE_SPEED;
-
-    if (this.moveLeft) {
-      this.x = Math.max(this.width / 2, this.x - speed / 60);
+    if (this.moveLeftActive) {
+      this.x = Math.max(this.baseWidth / 2 + 10, this.x - speed);
     }
-    if (this.moveRight) {
-      this.x = Math.min(GameConfig.WIDTH - this.width / 2, this.x + speed / 60);
+    if (this.moveRightActive) {
+      this.x = Math.min(GameConfig.WIDTH - this.baseWidth / 2 - 10, this.x + speed);
     }
+
+    // Update glow
+    this.glow.clear();
+    this.glow.fillStyle(GameConfig.COLORS.NEON_BLUE, 0.08);
+    this.glow.fillRoundedRect(
+      this.x - this.baseWidth / 2 - 8,
+      this.y - GameConfig.PADDLE_HEIGHT / 2 - 8,
+      this.baseWidth + 16,
+      GameConfig.PADDLE_HEIGHT + 16,
+      8
+    );
   }
 
-  public shrink(amount: number = 0.2): void {
-    const newWidth = Math.max(20, this.baseWidth * (1 - amount));
-    this.baseWidth = newWidth;
-    this.displayWidth = newWidth;
-    this.body?.setSize(newWidth, GameConfig.PADDLE_HEIGHT);
+  public getWidth(): number {
+    return this.baseWidth;
   }
 
   public reset(): void {
     this.x = GameConfig.WIDTH / 2;
     this.baseWidth = GameConfig.PADDLE_WIDTH;
-    this.displayWidth = this.baseWidth;
+    this.displayWidth = this.baseWidth + 8;
   }
 
-  public getWidth(): number {
-    return this.baseWidth;
+  public cleanUp(): void {
+    this.glow.destroy();
+  }
+
+  public static resetTexture(): void {
+    Paddle.textureCreated = false;
   }
 }

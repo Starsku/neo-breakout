@@ -2,23 +2,26 @@ export class ScoreSystem {
   private score: number = 0;
   private highScore: number = 0;
   private combo: number = 0;
-  private bricksDestroyedSinceRacket: number = 0;
 
   constructor() {
     this.loadHighScore();
   }
 
   addScore(points: number, speedMultiplier: number = 1): void {
-    const bonusMultiplier = 1 + (this.combo * 0.1);
-    const totalScore = Math.floor(points * speedMultiplier * bonusMultiplier);
-    this.score += totalScore;
+    const comboBonus = 1 + this.combo * 0.1;
+    const total = Math.floor(points * speedMultiplier * comboBonus);
+    this.score += total;
     this.combo += 1;
-    this.bricksDestroyedSinceRacket += 1;
+
+    // Auto-save high score
+    if (this.score > this.highScore) {
+      this.highScore = this.score;
+      this.saveHighScore();
+    }
   }
 
   resetCombo(): void {
     this.combo = 0;
-    this.bricksDestroyedSinceRacket = 0;
   }
 
   getScore(): number {
@@ -34,20 +37,24 @@ export class ScoreSystem {
   }
 
   saveHighScore(): void {
-    if (this.score > this.highScore) {
-      this.highScore = this.score;
+    try {
       localStorage.setItem('neo-breakout-highscore', this.highScore.toString());
+    } catch {
+      // Silent fail on storage errors
     }
   }
 
   loadHighScore(): void {
-    const saved = localStorage.getItem('neo-breakout-highscore');
-    this.highScore = saved ? parseInt(saved, 10) : 0;
+    try {
+      const saved = localStorage.getItem('neo-breakout-highscore');
+      this.highScore = saved ? parseInt(saved, 10) : 0;
+    } catch {
+      this.highScore = 0;
+    }
   }
 
   reset(): void {
     this.score = 0;
     this.combo = 0;
-    this.bricksDestroyedSinceRacket = 0;
   }
 }

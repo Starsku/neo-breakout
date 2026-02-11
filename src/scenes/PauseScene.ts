@@ -7,70 +7,59 @@ export class PauseScene extends Phaser.Scene {
   }
 
   create(): void {
-    // Semi-transparent overlay
-    const overlay = this.add.rectangle(
-      GameConfig.WIDTH / 2,
-      GameConfig.HEIGHT / 2,
-      GameConfig.WIDTH,
-      GameConfig.HEIGHT,
-      0x000000,
-      0.5
-    );
+    const W = GameConfig.WIDTH;
+    const H = GameConfig.HEIGHT;
 
-    // Pause text
-    this.add.text(GameConfig.WIDTH / 2, GameConfig.HEIGHT / 2 - 60, 'PAUSED', {
-      font: 'bold 60px Arial',
-      color: '#ffff00',
-      align: 'center',
-    }).setOrigin(0.5, 0.5);
+    // Semi-transparent overlay
+    const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.6);
+
+    // Title
+    this.add.text(W / 2, H / 2 - 70, 'PAUSED', {
+      font: 'bold 48px "Segoe UI", Arial',
+      color: '#ffee44',
+    }).setOrigin(0.5);
 
     // Resume button
-    const resumeButton = this.add.text(GameConfig.WIDTH / 2, GameConfig.HEIGHT / 2 + 40, 'RESUME', {
-      font: 'bold 30px Arial',
-      color: '#00ff00',
-      align: 'center',
-      backgroundColor: '#003300',
-      padding: { x: 30, y: 15 },
-    })
-      .setOrigin(0.5, 0.5)
-      .setInteractive()
-      .on('pointerover', () => {
-        resumeButton.setScale(1.1);
-      })
-      .on('pointerout', () => {
-        resumeButton.setScale(1);
-      })
-      .on('pointerdown', () => {
-        this.scene.stop('PauseScene');
-        this.scene.resume('MainScene');
-      });
+    this.createButton(W / 2, H / 2 + 20, 'RESUME', GameConfig.COLORS.NEON_GREEN, () => {
+      this.scene.stop('PauseScene');
+      this.scene.resume('MainScene');
+    });
 
     // Menu button
-    const menuButton = this.add.text(GameConfig.WIDTH / 2, GameConfig.HEIGHT / 2 + 120, 'MENU', {
-      font: 'bold 30px Arial',
-      color: '#ff0000',
-      align: 'center',
-      backgroundColor: '#330000',
-      padding: { x: 30, y: 15 },
-    })
-      .setOrigin(0.5, 0.5)
-      .setInteractive()
-      .on('pointerover', () => {
-        menuButton.setScale(1.1);
-      })
-      .on('pointerout', () => {
-        menuButton.setScale(1);
-      })
-      .on('pointerdown', () => {
-        this.scene.stop('PauseScene');
-        this.scene.stop('MainScene');
-        this.scene.start('MenuScene');
-      });
+    this.createButton(W / 2, H / 2 + 90, 'MENU', GameConfig.COLORS.UI_DANGER, () => {
+      this.scene.stop('PauseScene');
+      this.scene.stop('MainScene');
+      this.scene.start('MenuScene');
+    });
 
     // ESC to resume
     this.input.keyboard?.on('keydown-ESC', () => {
       this.scene.stop('PauseScene');
       this.scene.resume('MainScene');
     });
+  }
+
+  private createButton(x: number, y: number, label: string, color: number, onClick: () => void): void {
+    const g = this.add.graphics();
+    const w = 180, h = 48;
+    const drawBtn = (hover: boolean) => {
+      g.clear();
+      g.fillStyle(hover ? 0x222244 : 0x111133, 0.9);
+      g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+      g.lineStyle(2, color, hover ? 1 : 0.6);
+      g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+    };
+    drawBtn(false);
+
+    const colorStr = '#' + color.toString(16).padStart(6, '0');
+    this.add.text(x, y, label, {
+      font: 'bold 20px "Segoe UI", Arial',
+      color: colorStr,
+    }).setOrigin(0.5);
+
+    const hit = this.add.rectangle(x, y, w, h).setInteractive();
+    hit.on('pointerover', () => drawBtn(true));
+    hit.on('pointerout', () => drawBtn(false));
+    hit.on('pointerdown', onClick);
   }
 }

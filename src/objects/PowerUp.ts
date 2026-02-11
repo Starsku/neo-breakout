@@ -3,64 +3,77 @@ import { GameConfig } from '../config/GameConfig';
 
 export type PowerUpType = 'multiball' | 'laser' | 'sticky' | 'mega';
 
+const POWERUP_INFO: Record<PowerUpType, { color: number; label: string }> = {
+  multiball: { color: 0x44ff88, label: '×3' },
+  laser: { color: 0xff4466, label: '⚡' },
+  sticky: { color: 0x44aaff, label: '◎' },
+  mega: { color: 0xffaa22, label: '★' },
+};
+
 export class PowerUp extends Phaser.Physics.Arcade.Sprite {
   private powerUpType: PowerUpType;
-  private colors: Record<PowerUpType, number> = {
-    multiball: 0x00ff00,
-    laser: 0xff0000,
-    sticky: 0x0099ff,
-    mega: 0xffff00,
-  };
+  private static textureCache: Set<string> = new Set();
 
   constructor(scene: Phaser.Scene, x: number, y: number, type: PowerUpType) {
-    super(scene, x, y, '');
+    const info = POWERUP_INFO[type];
+    const texKey = `pu-${type}`;
+
+    if (!PowerUp.textureCache.has(texKey)) {
+      const s = GameConfig.POWERUP_SIZE;
+      const g = scene.make.graphics({ add: false } as any);
+      // Glow
+      g.fillStyle(info.color, 0.2);
+      g.fillCircle(s / 2 + 2, s / 2 + 2, s / 2 + 4);
+      // Background
+      g.fillStyle(info.color, 0.9);
+      g.fillCircle(s / 2 + 2, s / 2 + 2, s / 2);
+      // Inner highlight
+      g.fillStyle(0xffffff, 0.4);
+      g.fillCircle(s / 2, s / 2 - 1, s / 2 - 4);
+      g.generateTexture(texKey, s + 8, s + 8);
+      g.destroy();
+      PowerUp.textureCache.add(texKey);
+    }
+
+    super(scene, x, y, texKey);
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     this.powerUpType = type;
-
-    this.setCollideWorldBounds(true);
-    this.setBounce(0.5, 0);
+    this.setDepth(4);
     this.setVelocityY(GameConfig.POWERUP_SPEED);
 
-    this.drawPowerUp();
-  }
+    // Add floating label
+    const label = scene.add.text(x, y, info.label, {
+      font: 'bold 11px Arial',
+      color: '#ffffff',
+      align: 'center',
+    }).setOrigin(0.5, 0.5).setDepth(5);
 
-  private drawPowerUp(): void {
-    const graphics = this.scene.make.graphics({ x: 0, y: 0, add: false } as any);
-    const color = this.colors[this.powerUpType];
+    // Make label follow the powerup
+    const updateEvent = scene.events.on('update', () => {
+      if (this.active) {
+        label.setPosition(this.x, this.y);
+      } else {
+        label.destroy();
+        scene.events.off('update', updateEvent as any);
+      }
+    });
 
-    // Background circle
-    graphics.fillStyle(color, 1);
-    graphics.fillCircle(GameConfig.POWERUP_SIZE / 2, GameConfig.POWERUP_SIZE / 2, GameConfig.POWERUP_SIZE / 2);
-
-    // Icon or letter
-    graphics.fillStyle(0x000000, 1);
-    const label = this.getLabel();
-    graphics.generateTexture(`powerup-${this.powerUpType}`, GameConfig.POWERUP_SIZE, GameConfig.POWERUP_SIZE);
-    graphics.destroy();
-
-    this.setTexture(`powerup-${this.powerUpType}`);
-  }
-
-  private getLabel(): string {
-    switch (this.powerUpType) {
-      case 'multiball':
-        return 'M';
-      case 'laser':
-        return 'L';
-      case 'sticky':
-        return 'S';
-      case 'mega':
-        return 'E';
-    }
+    this.on('destroy', () => {
+      label.destroy();
+    });
   }
 
   public getType(): PowerUpType {
     return this.powerUpType;
   }
 
-  public static createRandom(scene: Phaser.Scene, x: number, y: number): PowerUp | null {
+  public static createRandom(
+    scene: Phaser.Scene,
+    x: number,
+    y: number
+  ): PowerUp | null {
     if (Math.random() > GameConfig.POWERUP_SPAWN_CHANCE) {
       return null;
     }
@@ -68,5 +81,9 @@ export class PowerUp extends Phaser.Physics.Arcade.Sprite {
     const types: PowerUpType[] = ['multiball', 'laser', 'sticky', 'mega'];
     const randomType = types[Math.floor(Math.random() * types.length)];
     return new PowerUp(scene, x, y, randomType);
+  }
+
+  public static resetTextureCache(): void {
+    PowerUp.textureCache.clear();
   }
 }

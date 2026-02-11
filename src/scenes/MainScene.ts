@@ -11,25 +11,39 @@ import { LevelSystem } from '../systems/LevelSystem';
 export class MainScene extends Phaser.Scene {
   private paddle!: Paddle;
   private balls: Ball[] = [];
-  private bricks: Phaser.Physics.Arcade.Group | null = null;
-  private powerUps: Phaser.Physics.Arcade.Group | null = null;
+  private bricks!: Phaser.Physics.Arcade.Group;
+  private powerUps!: Phaser.Physics.Arcade.Group;
+  private laserProjectiles!: Phaser.Physics.Arcade.Group;
   private scoreSystem!: ScoreSystem;
   private audioSystem!: AudioSystem;
   private levelSystem!: LevelSystem;
+
+  // UI
   private scoreText!: Phaser.GameObjects.Text;
   private comboText!: Phaser.GameObjects.Text;
   private levelText!: Phaser.GameObjects.Text;
-  private isPaused: boolean = false;
+  private livesText!: Phaser.GameObjects.Text;
+  private launchHint!: Phaser.GameObjects.Text;
+  private powerUpIndicator!: Phaser.GameObjects.Text;
+
+  // State
+  private lives: number = GameConfig.LIVES;
+  private waitingToLaunch: boolean = true;
   private activePowerUps: Map<PowerUpType, number> = new Map();
-  private laserProjectiles: Phaser.Physics.Arcade.Group | null = null;
+  private lastLaserTime: number = 0;
+  private backgroundGraphics!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super({ key: 'MainScene' });
   }
 
   init(data: any): void {
-    this.scoreSystem = data.scoreSystem || new ScoreSystem();
-    this.scoreSystem.reset();
+    this.scoreSystem = new ScoreSystem();
+    this.lives = GameConfig.LIVES;
+    this.waitingToLaunch = true;
+    this.activePowerUps.clear();
+    this.lastLaserTime = 0;
+    this.balls = [];
   }
 
   create(): void {
@@ -37,397 +51,589 @@ export class MainScene extends Phaser.Scene {
     this.levelSystem = new LevelSystem();
 
     // Background
-    const graphics = this.make.graphics({ x: 0, y: 0, add: false } as any);
-    graphics.fillStyle(GameConfig.COLORS.BG, 1);
-    graphics.fillRect(0, 0, GameConfig.WIDTH, GameConfig.HEIGHT);
-    graphics.generateTexture('game-bg', GameConfig.WIDTH, GameConfig.HEIGHT);
-    graphics.destroy();
-    this.add.sprite(GameConfig.WIDTH / 2, GameConfig.HEIGHT / 2, 'game-bg');
+    this.drawBackground();
 
     // Physics groups
     this.bricks = this.physics.add.group();
     this.powerUps = this.physics.add.group();
     this.laserProjectiles = this.physics.add.group();
 
+    // Disable bottom world bounds
+    this.physics.world.setBoundsCollision(true, true, true, false);
+
     // Create game objects
     this.paddle = new Paddle(this);
-    this.createInitialBall();
+    this.spawnBall();
     this.createBricks();
 
     // UI
     this.createUI();
 
     // Input
-    (this.input.keyboard as any)?.on('keydown-ESC', () => this.togglePause());
+    this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
+    this.input.keyboard?.on('keydown-SPACE', () => this.handleLaunchOrFire());
+    this.input.on('pointerdown', () => this.handleLaunchOrFire());
 
     // Collisions
     this.setupCollisions();
   }
 
-  private createInitialBall(): void {
-    const ball = new Ball(this);
+  // ─────────── Background ───────────
+  private drawBackground(): void {
+    this.backgroundGraphics = this.add.graphics();
+    this.backgroundGraphics.setDepth(-1);
+    // Dark gradient
+    for (let y = 0; y < GameConfig.HEIGHT; y += 2) {
+      const t = y / GameConfig.HEIGHT;
+      const r = Math.floor(10 + t * 8);
+      const g = Math.floor(10 + t * 6);
+      const b = Math.floor(26 + t * 20);
+      this.backgroundGraphics.fillStyle(Phaser.Display.Color.GetColor(r, g, b), 1);
+      this.backgroundGraphics.fillRect(0, y, GameConfig.WIDTH, 2);
+    }
+    // Grid lines (subtle)
+    this.backgroundGraphics.lineStyle(1, 0x1a1a3e, 0.2);
+    for (let x = 0; x < GameConfig.WIDTH; x += 40) {
+      this.backgroundGraphics.lineBetween(x, 0, x, GameConfig.HEIGHT);
+    }
+    for (let y = 0; y < GameConfig.HEIGHT; y += 40) {
+      this.backgroundGraphics.lineBetween(0, y, GameConfig.WIDTH, y);
+    }
+    // Border glow
+    this.backgroundGraphics.lineStyle(2, GameConfig.COLORS.NEON_BLUE, 0.3);
+    this.backgroundGraphics.strokeRect(1, 1, GameConfig.WIDTH - 2, GameConfig.HEIGHT - 2);
+  }
+
+  // ─────────── Ball Management ───────────
+  private spawnBall(): void {
+    const ball = new Ball(this, this.paddle.x, GameConfig.PADDLE_Y - 20);
     ball.stick(this.paddle.x);
     this.balls.push(ball);
     this.setupBallCollisions(ball);
+    this.waitingToLaunch = true;
+    this.updateLaunchHint(true);
   }
-  
+
   private setupBallCollisions(ball: Ball): void {
-    // Ball to paddle
-    this.physics.add.collider(
-      ball,
-      this.paddle,
-      (obj1: any, obj2: any) => this.handleBallPaddleCollision(obj1, obj2)
-    );
+    this.physics.add.collider(ball, this.paddle, (obj1: any, obj2: any) => {
+      this.onBallHitPaddle(obj1 as Ball, obj2 as Paddle);
+    });
 
-    // Ball to bricks - USE COLLIDER for physics bounce
-    this.physics.add.collider(
-      ball,
-      this.bricks!,
-      (obj1: any, obj2: any) => this.handleBrickCollision(obj1, obj2)
-    );
-
-    // Ball to powerups
-    this.physics.add.overlap(
-      ball,
-      this.powerUps!,
-      () => {} // Paddle catches powerups
-    );
+    this.physics.add.collider(ball, this.bricks, (obj1: any, obj2: any) => {
+      this.onBallHitBrick(obj1 as Ball, obj2 as Brick);
+    });
   }
 
-  private createBricks(): void {
-    if (!this.bricks) return;
+  private handleLaunchOrFire(): void {
+    // Launch ball if waiting
+    if (this.waitingToLaunch && this.balls.length > 0) {
+      const ball = this.balls.find((b) => b.isStuckToPaddle());
+      if (ball) {
+        ball.unstick(this.paddle.x, this.paddle.getWidth());
+        this.waitingToLaunch = false;
+        this.updateLaunchHint(false);
+        this.audioSystem.playSoundEffect('launch');
+        this.scoreSystem.resetCombo();
+        return;
+      }
+    }
 
+    // Fire laser if active
+    if (this.activePowerUps.has('laser')) {
+      this.fireLaser();
+    }
+  }
+
+  // ─────────── Bricks ───────────
+  private createBricks(): void {
     this.bricks.clear(true, true);
     const layout = this.levelSystem.getBrickLayout();
-
     layout.forEach((config) => {
-      const brick = new Brick(this, config.x, config.y, config.type, config.health);
-      this.bricks?.add(brick);
-    });
-  }
-
-  private createUI(): void {
-    this.scoreText = this.add.text(10, 10, `Score: ${this.scoreSystem.getScore()}`, {
-      font: '16px Arial',
-      color: '#ffffff',
-    });
-
-    this.comboText = this.add.text(GameConfig.WIDTH - 10, 10, `Combo: ${this.scoreSystem.getCombo()}`, {
-      font: '16px Arial',
-      color: '#ffff00',
-    }).setOrigin(1, 0);
-
-    this.levelText = this.add.text(GameConfig.WIDTH / 2, 10, `Level: ${this.levelSystem.getCurrentLevel()}`, {
-      font: '16px Arial',
-      color: '#00ff00',
-    }).setOrigin(0.5, 0);
-
-    const pauseText = this.add.text(GameConfig.WIDTH / 2, GameConfig.HEIGHT - 20, 'Press ESC to Pause', {
-      font: '12px Arial',
-      color: '#888888',
-    }).setOrigin(0.5, 1);
-  }
-
-  private setupCollisions(): void {
-    if (!this.bricks || !this.powerUps) return;
-
-    // Paddle to powerups
-    this.physics.add.overlap(
-      this.paddle,
-      this.powerUps,
-      (obj1: any, obj2: any) => this.handlePowerUpCollision(obj1, obj2)
-    );
-
-    // Laser to bricks
-    if (this.laserProjectiles) {
-      this.physics.add.overlap(
-        this.laserProjectiles,
-        this.bricks,
-        (obj1: any, obj2: any) => this.handleLaserBrickCollision(obj1, obj2)
+      const brick = new Brick(
+        this,
+        config.x,
+        config.y,
+        config.type,
+        config.health,
+        config.colorIndex
       );
-    }
-    
-    // Disable bottom world bounds for balls
-    this.physics.world.setBoundsCollision(true, true, true, false);
+      this.bricks.add(brick);
+    });
   }
 
-  private handleBallPaddleCollision(ball: any, paddle: any): void {
-    if (ball instanceof Ball && paddle instanceof Paddle) {
-      if (ball.isStuckToPaddle()) {
-        ball.launchFromPaddle(paddle.x, paddle.getWidth());
-      } else {
-        ball.handlePaddleCollision(paddle);
+  private countDestructibleBricks(): number {
+    let count = 0;
+    this.bricks.children.entries.forEach((child) => {
+      const brick = child as Brick;
+      if (brick.active && brick.getType() !== 'indestructible') {
+        count++;
       }
-      this.audioSystem.playSoundEffect('paddle', this.scoreSystem.getCombo());
+    });
+    return count;
+  }
+
+  // ─────────── UI ───────────
+  private createUI(): void {
+    const uiStyle = {
+      font: 'bold 16px "Segoe UI", Arial',
+      color: '#ffffff',
+    };
+
+    this.scoreText = this.add
+      .text(15, 12, 'SCORE 0', { ...uiStyle, color: '#ffffff' })
+      .setDepth(10);
+
+    this.comboText = this.add
+      .text(GameConfig.WIDTH - 15, 12, 'COMBO ×0', {
+        ...uiStyle,
+        color: '#ffee44',
+      })
+      .setOrigin(1, 0)
+      .setDepth(10);
+
+    this.levelText = this.add
+      .text(GameConfig.WIDTH / 2, 12, `LEVEL ${this.levelSystem.getCurrentLevel()}`, {
+        ...uiStyle,
+        color: '#44ff88',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(10);
+
+    this.livesText = this.add
+      .text(15, GameConfig.HEIGHT - 22, this.getLivesDisplay(), {
+        font: '16px Arial',
+        color: '#ff4466',
+      })
+      .setDepth(10);
+
+    this.powerUpIndicator = this.add
+      .text(GameConfig.WIDTH - 15, GameConfig.HEIGHT - 22, '', {
+        font: 'bold 14px Arial',
+        color: '#ffaa22',
+      })
+      .setOrigin(1, 0)
+      .setDepth(10);
+
+    this.launchHint = this.add
+      .text(GameConfig.WIDTH / 2, GameConfig.HEIGHT - 50, '[ SPACE / CLICK to launch ]', {
+        font: '14px Arial',
+        color: '#888888',
+      })
+      .setOrigin(0.5, 0.5)
+      .setDepth(10);
+
+    // Blink effect on hint
+    this.tweens.add({
+      targets: this.launchHint,
+      alpha: { from: 1, to: 0.3 },
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+    });
+  }
+
+  private getLivesDisplay(): string {
+    return '♥'.repeat(this.lives) + '♡'.repeat(Math.max(0, GameConfig.LIVES - this.lives));
+  }
+
+  private updateLaunchHint(show: boolean): void {
+    if (this.launchHint) {
+      this.launchHint.setVisible(show);
     }
   }
 
-  private handleBrickCollision(ball: any, brick: any): void {
-    if (!(ball instanceof Ball) || !(brick instanceof Brick)) return;
+  // ─────────── Collisions ───────────
+  private setupCollisions(): void {
+    // Paddle catches power-ups
+    this.physics.add.overlap(this.paddle, this.powerUps, (_, obj2: any) => {
+      this.onPowerUpCaught(obj2 as PowerUp);
+    });
 
-    const isMega = ball.getMega();
-    
-    // Get brick data BEFORE potentially destroying it
+    // Laser hits bricks
+    this.physics.add.overlap(this.laserProjectiles, this.bricks, (obj1: any, obj2: any) => {
+      this.onLaserHitBrick(obj1, obj2 as Brick);
+    });
+  }
+
+  private onBallHitPaddle(ball: Ball, paddle: Paddle): void {
+    if (ball.isStuckToPaddle()) return;
+    ball.handlePaddleCollision(paddle);
+    this.scoreSystem.resetCombo();
+    this.audioSystem.playSoundEffect('paddle', this.scoreSystem.getCombo());
+  }
+
+  private onBallHitBrick(ball: Ball, brick: Brick): void {
+    if (!brick.active) return;
+
     const brickType = brick.getType();
     const brickX = brick.x;
     const brickY = brick.y;
-    
-    // Hit the brick and check if it's destroyed
-    const isDestroyed = brick.hit();
-    
-    if (isDestroyed) {
+    const brickColor = brick.getColor();
+
+    const destroyed = brick.hit();
+
+    if (destroyed) {
       const points = brick.getPoints();
-      
-      // Disable brick physics immediately
+
+      // Disable physics immediately
       if (brick.body) {
         (brick.body as Phaser.Physics.Arcade.Body).enable = false;
       }
       brick.setActive(false);
       brick.setVisible(false);
-      
-      // Add score
-      this.scoreSystem.addScore(
-        points,
-        this.levelSystem.getSpeedMultiplier()
-      );
-      
-      // Spawn power-up if not indestructible
-      if (brickType !== 'indestructible') {
-        const powerUp = PowerUp.createRandom(this, brickX, brickY);
-        if (powerUp) {
-          this.powerUps?.add(powerUp);
-        }
-        
-        // Particle effect
-        this.createExplosionParticles(brickX, brickY, brickType);
+
+      // Score
+      this.scoreSystem.addScore(points, this.levelSystem.getSpeedMultiplier());
+
+      // Power-up chance
+      const powerUp = PowerUp.createRandom(this, brickX, brickY);
+      if (powerUp) {
+        this.powerUps.add(powerUp);
       }
-      
-      // Destroy brick after a frame
-      this.time.delayedCall(1, () => {
-        brick.destroy();
-        
-        // Check if all bricks are destroyed
-        if (this.bricks && this.bricks.countActive(true) === 0) {
-          this.time.delayedCall(100, () => this.nextLevel());
-        }
+
+      // Explosion particles
+      this.createParticles(brickX, brickY, brickColor);
+
+      // Destroy and check level complete
+      this.time.delayedCall(10, () => {
+        if (brick && brick.scene) brick.destroy();
+        this.checkLevelComplete();
       });
     }
-    
-    // Play sound
+
+    // Sound
     this.audioSystem.playSoundEffect(
       brickType === 'armored' ? 'armor' : 'brick',
       this.scoreSystem.getCombo()
     );
-    
-    // Accelerate ball
+
+    // Acceleration
     ball.accelerate(GameConfig.INTRA_LEVEL_ACCELERATION);
+
+    // Mega ball passes through
+    if (ball.getMega() && destroyed) {
+      // Don't bounce - keep velocity
+    }
   }
 
-  private handlePowerUpCollision(paddle: any, powerUp: any): void {
-    if (!(powerUp instanceof PowerUp)) return;
-
+  private onPowerUpCaught(powerUp: PowerUp): void {
     const type = powerUp.getType();
     this.audioSystem.playSoundEffect('powerup');
+    powerUp.destroy();
 
     switch (type) {
       case 'multiball':
-        this.activateBallMultiplier();
+        this.activateMultiball();
         break;
       case 'laser':
-        this.activateLaser();
+        this.activePowerUps.set('laser', GameConfig.POWERUP_DURATION);
         break;
       case 'sticky':
         this.activateSticky();
         break;
       case 'mega':
-        this.activateMega();
+        this.balls.forEach((b) => b.setMega(GameConfig.POWERUP_DURATION));
         break;
     }
-
-    powerUp.destroy();
   }
 
-  private activateBallMultiplier(): void {
-    const newBalls = this.balls.flatMap((ball) => {
-      const pos = ball.getPosition();
-      const b1 = new Ball(this, pos.x - 20, pos.y);
-      const b2 = new Ball(this, pos.x + 20, pos.y);
-      b1.launch();
-      b2.launch();
-      this.setupBallCollisions(b1);
-      this.setupBallCollisions(b2);
-      return [b1, b2];
-    });
+  private onLaserHitBrick(laser: any, brick: Brick): void {
+    if (!brick.active) return;
 
-    this.balls.push(...newBalls);
-  }
+    const destroyed = brick.hit();
+    if (destroyed) {
+      const points = brick.getPoints();
+      const bx = brick.x;
+      const by = brick.y;
+      const color = brick.getColor();
 
-  private activateLaser(): void {
-    this.activePowerUps.set('laser', 10000); // 10 seconds
-  }
+      if (brick.body) {
+        (brick.body as Phaser.Physics.Arcade.Body).enable = false;
+      }
+      brick.setActive(false);
+      brick.setVisible(false);
 
-  private activateSticky(): void {
-    if (this.balls.length > 0) {
-      const ball = this.balls[0];
-      ball.stick(this.paddle.x);
-      (this.input.keyboard as any)?.once('keydown-SPACE', () => {
-        ball.unstick();
+      this.scoreSystem.addScore(points, this.levelSystem.getSpeedMultiplier());
+      this.createParticles(bx, by, color);
+
+      this.time.delayedCall(10, () => {
+        if (brick && brick.scene) brick.destroy();
+        this.checkLevelComplete();
       });
-    }
-  }
-
-  private activateMega(): void {
-    this.balls.forEach((ball) => {
-      ball.setMega();
-    });
-  }
-
-  private handleLaserBrickCollision(laser: any, brick: any): void {
-    if (!(brick instanceof Brick)) return;
-
-    if (!brick.hit()) {
-      brick.destroy();
     }
 
     this.audioSystem.playSoundEffect('brick');
-    this.scoreSystem.addScore(brick.getPoints(), this.levelSystem.getSpeedMultiplier());
-    this.createExplosionParticles(brick.x, brick.y, brick.getType());
-
     laser.destroy();
-
-    if (this.bricks && this.bricks.children.entries.length === 0) {
-      this.nextLevel();
-    }
   }
 
-  private createExplosionParticles(x: number, y: number, brickType: BrickType): void {
-    const color = this.getColorForBrickType(brickType);
-    const particle = this.add.particles(color);
-    (particle as any).createEmitter({
-      x,
-      y,
-      speed: { min: -200, max: 200 },
-      angle: { min: 0, max: 360 },
-      scale: { start: 0.5, end: 0 },
-      lifespan: 600,
-      gravityY: 300,
-    } as any);
-
-    (this.time as any).delayedCall(600, () => particle.destroy());
+  // ─────────── Power-ups ───────────
+  private activateMultiball(): void {
+    const currentBalls = [...this.balls];
+    currentBalls.forEach((ball) => {
+      if (!ball.isStuckToPaddle()) {
+        const pos = ball.getPosition();
+        for (let i = 0; i < 2; i++) {
+          const nb = new Ball(this, pos.x + (i === 0 ? -15 : 15), pos.y);
+          nb.launch(i === 0 ? 240 * Phaser.Math.DEG_TO_RAD : 300 * Phaser.Math.DEG_TO_RAD);
+          this.balls.push(nb);
+          this.setupBallCollisions(nb);
+        }
+      }
+    });
   }
 
-  private getColorForBrickType(type: BrickType): number {
-    switch (type) {
-      case 'normal':
-        return GameConfig.COLORS.NORMAL;
-      case 'armored':
-        return GameConfig.COLORS.ARMORED;
-      case 'mobile':
-        return GameConfig.COLORS.MOBILE;
-      default:
-        return GameConfig.COLORS.NORMAL;
-    }
+  private activateSticky(): void {
+    // Next paddle hit will stick
+    this.activePowerUps.set('sticky', GameConfig.POWERUP_DURATION);
   }
 
   private fireLaser(): void {
-    if (!this.laserProjectiles) return;
+    const now = this.time.now;
+    if (now - this.lastLaserTime < 200) return; // Rate limit
+    this.lastLaserTime = now;
 
     const laser = this.add.rectangle(
       this.paddle.x,
       this.paddle.y - 20,
-      4,
-      20,
-      0xff0000
+      3,
+      16,
+      0xff4466
     );
     this.physics.add.existing(laser);
-    const laserPhysics = laser.body as Phaser.Physics.Arcade.Body;
-    laserPhysics.setVelocityY(-400);
+    (laser.body as Phaser.Physics.Arcade.Body).setVelocityY(-500);
     this.laserProjectiles.add(laser);
 
-    this.time.delayedCall(2000, () => laser.destroy());
+    // Auto-destroy after 2s
+    this.time.delayedCall(2000, () => {
+      if (laser && laser.scene) laser.destroy();
+    });
   }
 
-  private togglePause(): void {
-    this.isPaused = !this.isPaused;
+  // ─────────── Particles (simple, compatible) ───────────
+  private createParticles(x: number, y: number, color: number): void {
+    const count = 8;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+      const speed = 80 + Math.random() * 120;
+      const size = 2 + Math.random() * 3;
 
-    if (this.isPaused) {
-      this.scene.pause('MainScene');
-      this.scene.launch('PauseScene');
-    } else {
-      this.scene.resume('MainScene');
-      this.scene.stop('PauseScene');
+      const p = this.add.circle(x, y, size, color, 1).setDepth(8);
+      this.tweens.add({
+        targets: p,
+        x: x + Math.cos(angle) * speed,
+        y: y + Math.sin(angle) * speed + 30,
+        alpha: 0,
+        scale: 0,
+        duration: 350 + Math.random() * 200,
+        ease: 'Power2',
+        onComplete: () => p.destroy(),
+      });
+    }
+  }
+
+  // ─────────── Level Logic ───────────
+  private checkLevelComplete(): void {
+    if (this.countDestructibleBricks() === 0) {
+      this.time.delayedCall(200, () => this.nextLevel());
     }
   }
 
   private nextLevel(): void {
     if (this.levelSystem.isLastLevel()) {
-      this.scene.start('VictoryScene', {
-        score: this.scoreSystem.getScore(),
-        highScore: this.scoreSystem.getHighScore(),
-        scoreSystem: this.scoreSystem,
-      });
-    } else {
-      this.levelSystem.nextLevel();
-      const speedMultiplier = this.levelSystem.getSpeedMultiplier();
-
-      this.balls.forEach((ball) => {
-        ball.setBaseSpeed(GameConfig.BALL_SPEED_BASE * speedMultiplier);
-      });
-
-      this.createBricks();
-      this.levelText.setText(`Level: ${this.levelSystem.getCurrentLevel()}`);
-    }
-  }
-
-  update(time: number, delta: number): void {
-    if (this.isPaused) return;
-
-    this.paddle.update();
-
-    // Update balls
-    this.balls = this.balls.filter((ball) => {
-      ball.updateMega(delta);
-
-      // Check if ball fell off screen
-      if (ball.y > GameConfig.HEIGHT) {
-        ball.destroy();
-        return false;
-      }
-
-      return true;
-    });
-
-    // Check game over
-    if (this.balls.length === 0) {
       this.scoreSystem.saveHighScore();
-      this.scene.start('GameOverScene', {
+      this.scene.start('VictoryScene', {
         score: this.scoreSystem.getScore(),
         highScore: this.scoreSystem.getHighScore(),
       });
       return;
     }
 
-    // Update bricks
-    this.bricks?.children.entries.forEach((child) => {
-      const brick = child as Brick;
-      brick.update();
-    });
+    this.levelSystem.nextLevel();
+    this.audioSystem.playSoundEffect('levelup');
 
-    // Update laser power-up
-    const laserDuration = this.activePowerUps.get('laser');
-    if (laserDuration && laserDuration > 0) {
-      // Laser fires automatically every 500ms
-      if (!this.data.get('lastLaserTime') || time - this.data.get('lastLaserTime') > 500) {
-        this.fireLaser();
-        this.data.set('lastLaserTime', time);
-      }
-      this.activePowerUps.set('laser', laserDuration - delta);
-    } else if (laserDuration && laserDuration <= 0) {
-      this.activePowerUps.delete('laser');
-    }
+    // Clear balls and powerups
+    this.balls.forEach((b) => {
+      b.cleanUp();
+      b.destroy();
+    });
+    this.balls = [];
+    this.powerUps.clear(true, true);
+    this.laserProjectiles.clear(true, true);
+    this.activePowerUps.clear();
+
+    // Speed up
+    const speedMul = this.levelSystem.getSpeedMultiplier();
+
+    // New bricks
+    this.createBricks();
+
+    // New ball
+    this.spawnBall();
+    this.balls.forEach((b) => b.setBaseSpeed(GameConfig.BALL_SPEED_BASE * speedMul));
 
     // Update UI
-    this.scoreText.setText(`Score: ${this.scoreSystem.getScore()}`);
-    this.comboText.setText(`Combo: ${this.scoreSystem.getCombo()}`);
+    this.levelText.setText(`LEVEL ${this.levelSystem.getCurrentLevel()}`);
+
+    // Flash effect
+    const flash = this.add.rectangle(
+      GameConfig.WIDTH / 2,
+      GameConfig.HEIGHT / 2,
+      GameConfig.WIDTH,
+      GameConfig.HEIGHT,
+      0xffffff,
+      0.3
+    ).setDepth(20);
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 500,
+      onComplete: () => flash.destroy(),
+    });
+  }
+
+  // ─────────── Ball Lost ───────────
+  private onBallLost(): void {
+    // Prevent being called multiple times
+    this.waitingToLaunch = true;
+    
+    this.lives--;
+    this.livesText.setText(this.getLivesDisplay());
+    this.audioSystem.playSoundEffect('loss');
+
+    if (this.lives <= 0) {
+      this.scoreSystem.saveHighScore();
+      this.time.delayedCall(500, () => {
+        this.scene.start('GameOverScene', {
+          score: this.scoreSystem.getScore(),
+          highScore: this.scoreSystem.getHighScore(),
+        });
+      });
+      return;
+    }
+
+    // Flash red
+    const flash = this.add.rectangle(
+      GameConfig.WIDTH / 2,
+      GameConfig.HEIGHT / 2,
+      GameConfig.WIDTH,
+      GameConfig.HEIGHT,
+      0xff0000,
+      0.15
+    ).setDepth(20);
+    this.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 400,
+      onComplete: () => flash.destroy(),
+    });
+
+    // Clear active powerups
+    this.activePowerUps.clear();
+    this.powerUps.clear(true, true);
+    this.laserProjectiles.clear(true, true);
+
+    // Spawn new ball after delay
+    this.time.delayedCall(600, () => {
+      this.spawnBall();
+    });
+  }
+
+  // ─────────── Pause ───────────
+  private togglePause(): void {
+    this.scene.pause('MainScene');
+    this.scene.launch('PauseScene');
+  }
+
+  // ─────────── Main Update Loop ───────────
+  update(time: number, delta: number): void {
+    // Paddle
+    this.paddle.updatePaddle(delta);
+
+    // Balls follow paddle if stuck
+    this.balls.forEach((b) => {
+      if (b.isStuckToPaddle()) {
+        b.followPaddle(this.paddle.x);
+      }
+    });
+
+    // Update balls, check for lost balls
+    const lostBalls: Ball[] = [];
+    this.balls = this.balls.filter((ball) => {
+      ball.updateBall(delta / 1000);
+
+      if (ball.y > GameConfig.HEIGHT + 20) {
+        lostBalls.push(ball);
+        ball.cleanUp();
+        ball.destroy();
+        return false;
+      }
+      return true;
+    });
+
+    // If all balls lost
+    if (this.balls.length === 0 && !this.waitingToLaunch) {
+      this.onBallLost();
+      return;
+    }
+
+    // Update bricks (mobile)
+    this.bricks.children.entries.forEach((child) => {
+      const brick = child as Brick;
+      if (brick.active) brick.updateBrick(delta);
+    });
+
+    // Power-up timers
+    this.activePowerUps.forEach((remaining, type) => {
+      const newRemaining = remaining - delta;
+      if (newRemaining <= 0) {
+        this.activePowerUps.delete(type);
+      } else {
+        this.activePowerUps.set(type, newRemaining);
+      }
+    });
+
+    // Auto-fire laser
+    if (this.activePowerUps.has('laser')) {
+      if (time - this.lastLaserTime > 300) {
+        this.fireLaser();
+      }
+    }
+
+    // Clean up off-screen power-ups
+    this.powerUps.children.entries.forEach((child) => {
+      if ((child as any).y > GameConfig.HEIGHT + 30) {
+        child.destroy();
+      }
+    });
+
+    // Clean up off-screen lasers
+    this.laserProjectiles.children.entries.forEach((child) => {
+      if ((child as any).y < -20) {
+        child.destroy();
+      }
+    });
+
+    // Update UI
+    this.scoreText.setText(`SCORE ${this.scoreSystem.getScore()}`);
+    const combo = this.scoreSystem.getCombo();
+    this.comboText.setText(combo > 0 ? `COMBO ×${combo}` : '');
+
+    // Power-up indicator
+    const puTexts: string[] = [];
+    this.activePowerUps.forEach((remaining, type) => {
+      const secs = Math.ceil(remaining / 1000);
+      const labels: Record<string, string> = {
+        laser: `⚡${secs}s`,
+        sticky: `◎${secs}s`,
+        mega: `★${secs}s`,
+      };
+      if (labels[type]) puTexts.push(labels[type]);
+    });
+    this.powerUpIndicator.setText(puTexts.join('  '));
+  }
+
+  shutdown(): void {
+    this.balls.forEach((b) => b.cleanUp());
+    this.paddle?.cleanUp();
   }
 }
