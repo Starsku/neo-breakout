@@ -6,18 +6,26 @@ console.log("REDIS_URL starts with:", process.env.REDIS_URL?.substring(0, 10));
 
 const redisUrl = process.env.REDIS_URL || '';
 let redis: Redis | null = null;
+let lastRedisError: any = null;
 
 if (redisUrl) {
   try {
-    redis = new Redis(redisUrl);
+    redis = new Redis(redisUrl, { 
+      connectTimeout: 10000, 
+      family: 4, 
+      retryStrategy: (times) => null 
+    });
     redis.on('error', (err) => {
-      console.error('Redis Client Error:', err);
+      console.error('REDIS_DETAILED_ERROR:', err);
+      lastRedisError = err;
     });
   } catch (error) {
     console.error('Redis Connection Error:', error);
+    lastRedisError = error;
   }
 } else {
   console.error('REDIS_URL is not defined');
+  lastRedisError = new Error('REDIS_URL is not defined');
 }
 
 /**
@@ -38,8 +46,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!redis) throw new Error("Redis client not initialized");
         const scoresRaw = await redis.get('leaderboard');
         scores = scoresRaw ? JSON.parse(scoresRaw) : [];
-      } catch (redisError) {
+      } catch (redisError: any) {
         console.error('Redis GET error:', redisError);
+        return res.status(500).json({ 
+          error: 'Redis GET error', 
+          details: redisError.message,
+          lastRedisError: lastRedisError ? lastRedisError.message : null,
+          code: redisError.code
+        });
       }
       
       const topScores = Array.isArray(scores) 
@@ -75,11 +89,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         await redis.set('leaderboard', JSON.stringify(updatedScores));
         currentScores = updatedScores;
-      } catch (redisError) {
+      } catch (redisError: any) {
         console.error('Redis POST error:', redisError);
-        // Temporary fallback if redis fails
-        currentScores.push({ name: cleanName, score: Number(score), date });
-        currentScores.sort((a, b) => b.score - a.score);
+        return res.status(500).json({ 
+          error: 'Redis POST error', 
+          details: redisError.message,
+          lastRedisError: lastRedisError ? lastRedisError.message : null,
+          code: redisError.code
+        });
       }
 
       return res.status(200).json(currentScores.slice(0, 3));
@@ -89,6 +106,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error: any) {
     console.error('API scores handler error:', error);
-    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    return res.status(500).json({ 
+      error: error.message || 'Internal Server Error',
+      lastRedisError: lastRedisError ? lastRedisError.message : null
+    });
   }
 }
