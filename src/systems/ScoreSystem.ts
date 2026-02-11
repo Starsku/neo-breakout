@@ -18,13 +18,16 @@ export class ScoreSystem {
 
   public async refreshLeaderboard(): Promise<LeaderboardEntry[]> {
     try {
+      console.log('Fetching leaderboard...');
       const response = await fetch('/api/scores');
       if (response.ok) {
         this.leaderboard = await response.json();
+        console.log('Leaderboard updated:', this.leaderboard);
+      } else {
+        console.error('Leaderboard response not OK:', response.status);
       }
     } catch (error) {
       console.error('Failed to fetch leaderboard:', error);
-      // Fallback to local if absolutely necessary or just keep empty
     }
     return this.leaderboard;
   }
@@ -81,8 +84,15 @@ export class ScoreSystem {
   }
 
   public isTop3(score: number): boolean {
-    if (this.leaderboard.length < 3) return true;
-    return score > this.leaderboard[this.leaderboard.length - 1].score;
+    console.log('Checking isTop3 for score:', score, 'against leaderboard:', this.leaderboard);
+    if (this.leaderboard.length < 3) {
+      console.log('Leaderboard has less than 3 entries, true');
+      return true;
+    }
+    const threshold = this.leaderboard[2].score;
+    const result = score > threshold;
+    console.log(`Threshold is ${threshold}, result is ${result}`);
+    return result;
   }
 
   public async addToLeaderboard(name: string, score: number): Promise<void> {

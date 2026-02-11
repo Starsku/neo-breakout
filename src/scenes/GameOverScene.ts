@@ -52,7 +52,22 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   private async checkLeaderboard(x: number, y: number): Promise<void> {
-    await this.scoreSystem.refreshLeaderboard();
+    const loadingText = this.add.text(x, y, 'CHECKING SCORE...', {
+      font: 'bold 18px Arial',
+      color: '#ffee44',
+    }).setOrigin(0.5);
+
+    try {
+      // Timeout after 3 seconds if API hangs
+      const leaderboardPromise = this.scoreSystem.refreshLeaderboard();
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
+      
+      await Promise.race([leaderboardPromise, timeoutPromise]);
+    } catch (err) {
+      console.warn('Leaderboard check failed or timed out:', err);
+    } finally {
+      loadingText.destroy();
+    }
     
     if (this.scoreSystem.isTop3(this.score) && this.score > 0) {
       this.showNameInput(x, 280);
@@ -125,13 +140,12 @@ export class GameOverScene extends Phaser.Scene {
   }
 
   private async showLeaderboard(x: number, y: number): Promise<void> {
-    const title = this.add.text(x, y, 'LOADING LEADERBOARD...', {
+    const title = this.add.text(x, y, 'TOP 3 LEADERBOARD', {
       font: 'bold 18px Arial',
       color: '#ffee44',
     }).setOrigin(0.5);
 
-    const leaderboard = await this.scoreSystem.refreshLeaderboard();
-    title.setText('TOP 3 LEADERBOARD');
+    const leaderboard = this.scoreSystem.getLeaderboard();
 
     if (leaderboard.length === 0) {
       this.add.text(x, y + 50, 'NO SCORES YET', {
