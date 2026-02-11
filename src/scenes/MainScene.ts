@@ -25,6 +25,7 @@ export class MainScene extends Phaser.Scene {
   private livesText!: Phaser.GameObjects.Text;
   private launchHint!: Phaser.GameObjects.Text;
   private powerUpIndicator!: Phaser.GameObjects.Text;
+  private pauseButton!: Phaser.GameObjects.Container;
 
   // State
   private lives: number = GameConfig.LIVES;
@@ -69,10 +70,17 @@ export class MainScene extends Phaser.Scene {
     // UI
     this.createUI();
 
+    // Pause Button
+    this.createPauseButton();
+
     // Input
     this.input.keyboard?.on('keydown-ESC', () => this.togglePause());
     this.input.keyboard?.on('keydown-SPACE', () => this.handleLaunchOrFire());
-    this.input.on('pointerdown', () => this.handleLaunchOrFire());
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Don't launch if clicking UI
+      if (pointer.y < 80 && pointer.x > GameConfig.WIDTH - 80) return;
+      this.handleLaunchOrFire();
+    });
 
     // Collisions
     this.setupCollisions();
@@ -246,6 +254,49 @@ export class MainScene extends Phaser.Scene {
     if (this.launchHint) {
       this.launchHint.setVisible(show);
     }
+  }
+
+  private createPauseButton(): void {
+    const x = GameConfig.WIDTH - 40;
+    const y = 40;
+    const size = 32;
+
+    this.pauseButton = this.add.container(x, y);
+    this.pauseButton.setDepth(100);
+
+    const bg = this.add.graphics();
+    const drawBg = (hover: boolean) => {
+      bg.clear();
+      bg.fillStyle(0x000000, hover ? 0.6 : 0.3);
+      bg.fillRoundedRect(-size / 2, -size / 2, size, size, 6);
+      bg.lineStyle(1.5, GameConfig.COLORS.UI_PRIMARY, hover ? 1 : 0.5);
+      bg.strokeRoundedRect(-size / 2, -size / 2, size, size, 6);
+    };
+    drawBg(false);
+
+    const icon = this.add.graphics();
+    icon.fillStyle(0xffffff, 0.9);
+    // Pause icon (two bars)
+    icon.fillRect(-6, -8, 4, 16);
+    icon.fillRect(2, -8, 4, 16);
+
+    this.pauseButton.add([bg, icon]);
+
+    const hitArea = new Phaser.Geom.Rectangle(-size / 2, -size / 2, size, size);
+    this.pauseButton.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
+
+    this.pauseButton.on('pointerover', () => {
+      drawBg(true);
+      this.game.canvas.style.cursor = 'pointer';
+    });
+    this.pauseButton.on('pointerout', () => {
+      drawBg(false);
+      this.game.canvas.style.cursor = 'default';
+    });
+    this.pauseButton.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      pointer.event.stopPropagation();
+      this.togglePause();
+    });
   }
 
   // ─────────── Collisions ───────────
@@ -562,6 +613,7 @@ export class MainScene extends Phaser.Scene {
 
   // ─────────── Pause ───────────
   private togglePause(): void {
+    this.game.canvas.style.cursor = 'default';
     this.scene.pause('MainScene');
     this.scene.launch('PauseScene');
   }
