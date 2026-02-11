@@ -178,8 +178,12 @@ export class MainScene extends Phaser.Scene {
     if (isDestroyed) {
       const points = brick.getPoints();
       
-      // Destroy brick
-      brick.destroy();
+      // Disable brick physics immediately
+      if (brick.body) {
+        (brick.body as Phaser.Physics.Arcade.Body).enable = false;
+      }
+      brick.setActive(false);
+      brick.setVisible(false);
       
       // Add score
       this.scoreSystem.addScore(
@@ -198,10 +202,15 @@ export class MainScene extends Phaser.Scene {
         this.createExplosionParticles(brickX, brickY, brickType);
       }
       
-      // Check if all bricks are destroyed
-      if (this.bricks && (this.bricks.children.entries.length === 0)) {
-        this.nextLevel();
-      }
+      // Destroy brick after a frame
+      this.time.delayedCall(1, () => {
+        brick.destroy();
+        
+        // Check if all bricks are destroyed
+        if (this.bricks && this.bricks.countActive(true) === 0) {
+          this.time.delayedCall(100, () => this.nextLevel());
+        }
+      });
     }
     
     // Play sound
