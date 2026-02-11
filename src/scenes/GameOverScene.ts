@@ -92,31 +92,46 @@ export class GameOverScene extends Phaser.Scene {
 
     let playerName = '';
     const nameDisplay = this.add.text(x, y + 40, '_', {
-      font: 'bold 32px Courier New',
+      font: 'bold 32px "Courier New"',
       color: '#44ff88',
-      backgroundColor: '#112211',
       padding: { x: 10, y: 5 }
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(10);
     inputGroup.add(nameDisplay);
 
-    // Hidden HTML Input to trigger mobile keyboard
+    // HTML Input to trigger mobile keyboard and handle input
     const hiddenInput = document.createElement('input');
     hiddenInput.type = 'text';
-    hiddenInput.style.position = 'absolute';
-    hiddenInput.style.opacity = '0';
-    hiddenInput.style.pointerEvents = 'none';
-    hiddenInput.style.zIndex = '-1';
     hiddenInput.maxLength = 10;
-    document.body.appendChild(hiddenInput);
+    
+    // Style the input to match the game and overlay perfectly
+    Object.assign(hiddenInput.style, {
+      width: '200px',
+      height: '50px',
+      fontSize: '32px',
+      fontFamily: '"Courier New", Courier, monospace',
+      fontWeight: 'bold',
+      textAlign: 'center',
+      color: '#44ff88',
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
+      border: '1px solid #44ff88',
+      borderRadius: '5px',
+      outline: 'none',
+      caretColor: 'transparent', // Hide cursor
+      textShadow: '0 0 5px #44ff88',
+      boxShadow: '0 0 10px rgba(68, 255, 136, 0.2)'
+    });
 
-    const phaserDomElement = this.add.dom(x, y + 40, hiddenInput);
+    const phaserDomElement = this.add.dom(x, y + 40, hiddenInput).setDepth(11);
+    
+    // Hide nameDisplay since we now use the styled input
+    nameDisplay.setVisible(false);
     
     // Focus the input to show the keyboard
     hiddenInput.focus();
     
     const updateName = (val: string) => {
       playerName = val.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
-      nameDisplay.setText(playerName + (playerName.length < 10 ? '_' : ''));
+      hiddenInput.value = playerName;
     };
 
     hiddenInput.addEventListener('input', (e) => {
@@ -233,24 +248,39 @@ export class GameOverScene extends Phaser.Scene {
   private createButton(x: number, y: number, label: string, color: number, onClick: () => void): void {
     const g = this.add.graphics();
     const w = 180, h = 50;
+    const colorStr = '#' + color.toString(16).padStart(6, '0');
+    
     const drawBtn = (hover: boolean) => {
       g.clear();
+      if (hover) {
+        // Neon glow effect
+        g.lineStyle(4, color, 0.3);
+        g.strokeRoundedRect(x - w / 2 - 2, y - h / 2 - 2, w + 4, h + 4, 12);
+      }
+      
       g.fillStyle(hover ? 0x222244 : 0x111133, 1);
-      g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+      g.fillRoundedRect(x - w / 2, y - h / 2, w, h, 10);
       g.lineStyle(2, color, hover ? 1 : 0.6);
-      g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 8);
+      g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 10);
     };
     drawBtn(false);
 
-    const colorStr = '#' + color.toString(16).padStart(6, '0');
-    this.add.text(x, y, label, {
+    const txt = this.add.text(x, y, label, {
       font: 'bold 22px "Segoe UI", Arial',
       color: colorStr,
     }).setOrigin(0.5);
 
     const hit = this.add.rectangle(x, y, w, h).setInteractive();
-    hit.on('pointerover', () => drawBtn(true));
-    hit.on('pointerout', () => drawBtn(false));
+    hit.on('pointerover', () => {
+      drawBtn(true);
+      txt.setScale(1.05);
+      txt.setShadow(0, 0, colorStr, 10, true, true);
+    });
+    hit.on('pointerout', () => {
+      drawBtn(false);
+      txt.setScale(1);
+      txt.setShadow(0, 0, 'none');
+    });
     hit.on('pointerdown', onClick);
   }
 }
