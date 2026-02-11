@@ -1,7 +1,7 @@
 export const GameConfig = {
   // Canvas
-  WIDTH: 800,
-  HEIGHT: 600,
+  WIDTH: 450,
+  HEIGHT: 800,
 
   // Game
   LIVES: 3,
@@ -10,15 +10,15 @@ export const GameConfig = {
   PADDLE_WIDTH: 100,
   PADDLE_HEIGHT: 14,
   PADDLE_SPEED: 600,
-  PADDLE_Y: 560,
+  PADDLE_Y: 750,
 
   // Bricks
-  BRICK_WIDTH: 64,
+  BRICK_WIDTH: 50,
   BRICK_HEIGHT: 20,
-  BRICK_PADDING_X: 6,
-  BRICK_PADDING_Y: 6,
-  BRICK_OFFSET_TOP: 60,
-  BRICK_OFFSET_LEFT: 55,
+  BRICK_PADDING_X: 4,
+  BRICK_PADDING_Y: 4,
+  BRICK_OFFSET_TOP: 100,
+  BRICK_OFFSET_LEFT: 25,
 
   // Levels
   LEVEL_COUNT: 5,

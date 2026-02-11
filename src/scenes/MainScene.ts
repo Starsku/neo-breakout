@@ -192,34 +192,37 @@ export class MainScene extends Phaser.Scene {
     };
 
     this.scoreText = this.add
-      .text(15, 12, 'SCORE 0', { ...uiStyle, color: '#ffffff' })
-      .setDepth(10);
-
-    this.comboText = this.add
-      .text(GameConfig.WIDTH - 15, 12, 'COMBO ×0', {
-        ...uiStyle,
-        color: '#ffee44',
-      })
-      .setOrigin(1, 0)
+      .text(GameConfig.WIDTH / 2, 10, 'SCORE 0', { ...uiStyle, color: '#ffffff' })
+      .setOrigin(0.5, 0)
       .setDepth(10);
 
     this.levelText = this.add
-      .text(GameConfig.WIDTH / 2, 12, `LEVEL ${this.levelSystem.getCurrentLevel()}`, {
+      .text(GameConfig.WIDTH / 2, 35, `LEVEL ${this.levelSystem.getCurrentLevel()}`, {
         ...uiStyle,
         color: '#44ff88',
+        font: 'bold 14px "Segoe UI", Arial',
+      })
+      .setOrigin(0.5, 0)
+      .setDepth(10);
+
+    this.comboText = this.add
+      .text(GameConfig.WIDTH / 2, 60, '', {
+        ...uiStyle,
+        color: '#ffee44',
+        font: 'bold 12px "Segoe UI", Arial',
       })
       .setOrigin(0.5, 0)
       .setDepth(10);
 
     this.livesText = this.add
-      .text(15, GameConfig.HEIGHT - 22, this.getLivesDisplay(), {
+      .text(15, 15, this.getLivesDisplay(), {
         font: '16px Arial',
         color: '#ff4466',
       })
       .setDepth(10);
 
     this.powerUpIndicator = this.add
-      .text(GameConfig.WIDTH - 15, GameConfig.HEIGHT - 22, '', {
+      .text(GameConfig.WIDTH - 15, 15, '', {
         font: 'bold 14px Arial',
         color: '#ffaa22',
       })

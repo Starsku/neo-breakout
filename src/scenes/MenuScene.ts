@@ -34,14 +34,14 @@ export class MenuScene extends Phaser.Scene {
     bg.strokeRect(1, 1, W - 2, H - 2);
 
     // Title with glow
-    const titleGlow = this.add.text(W / 2, 100, 'NEO-BREAKOUT', {
-      font: 'bold 56px "Segoe UI", Arial',
+    const titleGlow = this.add.text(W / 2, 120, 'NEO\nBREAKOUT', {
+      font: 'bold 44px "Segoe UI", Arial',
       color: '#00ff88',
       align: 'center',
     }).setOrigin(0.5).setAlpha(0.3).setScale(1.05);
 
-    const title = this.add.text(W / 2, 100, 'NEO-BREAKOUT', {
-      font: 'bold 56px "Segoe UI", Arial',
+    const title = this.add.text(W / 2, 120, 'NEO\nBREAKOUT', {
+      font: 'bold 44px "Segoe UI", Arial',
       color: '#00ff88',
       align: 'center',
     }).setOrigin(0.5);
@@ -57,7 +57,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Subtitle
-    this.add.text(W / 2, 160, 'BRICK BREAKER', {
+    this.add.text(W / 2, 210, 'BRICK BREAKER', {
       font: '18px Arial',
       color: '#44aaff',
       letterSpacing: 8,
@@ -66,7 +66,7 @@ export class MenuScene extends Phaser.Scene {
     // High score
     const hs = scoreSystem.getHighScore();
     if (hs > 0) {
-      this.add.text(W / 2, 210, `HIGH SCORE: ${hs}`, {
+      this.add.text(W / 2, 250, `HIGH SCORE: ${hs}`, {
         font: 'bold 22px Arial',
         color: '#ffee44',
       }).setOrigin(0.5);
@@ -75,31 +75,31 @@ export class MenuScene extends Phaser.Scene {
     // Play button
     const btnBg = this.add.graphics();
     btnBg.fillStyle(0x003322, 1);
-    btnBg.fillRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+    btnBg.fillRoundedRect(W / 2 - 100, 310, 200, 60, 10);
     btnBg.lineStyle(2, GameConfig.COLORS.NEON_GREEN, 0.8);
-    btnBg.strokeRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+    btnBg.strokeRoundedRect(W / 2 - 100, 310, 200, 60, 10);
 
-    const playText = this.add.text(W / 2, 320, '▶  PLAY', {
+    const playText = this.add.text(W / 2, 340, '▶  PLAY', {
       font: 'bold 28px "Segoe UI", Arial',
       color: '#44ff88',
     }).setOrigin(0.5);
 
-    const hitArea = this.add.rectangle(W / 2, 320, 200, 60).setInteractive();
+    const hitArea = this.add.rectangle(W / 2, 340, 200, 60).setInteractive();
     hitArea.on('pointerover', () => {
       playText.setColor('#88ffbb');
       btnBg.clear();
       btnBg.fillStyle(0x005533, 1);
-      btnBg.fillRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+      btnBg.fillRoundedRect(W / 2 - 100, 310, 200, 60, 10);
       btnBg.lineStyle(2, GameConfig.COLORS.NEON_GREEN, 1);
-      btnBg.strokeRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+      btnBg.strokeRoundedRect(W / 2 - 100, 310, 200, 60, 10);
     });
     hitArea.on('pointerout', () => {
       playText.setColor('#44ff88');
       btnBg.clear();
       btnBg.fillStyle(0x003322, 1);
-      btnBg.fillRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+      btnBg.fillRoundedRect(W / 2 - 100, 310, 200, 60, 10);
       btnBg.lineStyle(2, GameConfig.COLORS.NEON_GREEN, 0.8);
-      btnBg.strokeRoundedRect(W / 2 - 100, 290, 200, 60, 10);
+      btnBg.strokeRoundedRect(W / 2 - 100, 310, 200, 60, 10);
     });
     hitArea.on('pointerdown', () => {
       this.scene.start('MainScene');
@@ -112,21 +112,19 @@ export class MenuScene extends Phaser.Scene {
 
     // Controls info
     const controls = [
-      ['← → / Q D', 'Move paddle'],
-      ['MOUSE', 'Aim paddle'],
-      ['SPACE / CLICK', 'Launch ball'],
+      ['TOUCH / MOUSE', 'Move paddle'],
+      ['CLICK', 'Launch ball'],
       ['ESC', 'Pause'],
     ];
 
-    let yPos = 400;
-    yPos = 390; // Shift up slightly
+    let yPos = 410;
     controls.forEach(([key, desc]) => {
-      this.add.text(W / 2 - 100, yPos, key, {
-        font: 'bold 13px Arial',
+      this.add.text(W / 2 - 110, yPos, key, {
+        font: 'bold 12px Arial',
         color: '#44ff88',
       });
-      this.add.text(W / 2 + 20, yPos, desc, {
-        font: '13px Arial',
+      this.add.text(W / 2 + 10, yPos, desc, {
+        font: '12px Arial',
         color: '#aaaacc',
       });
       yPos += 22;
@@ -139,7 +137,7 @@ export class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Leaderboard
-    this.displayLeaderboard(W / 2, 420, scoreSystem);
+    this.displayLeaderboard(W / 2, 460, scoreSystem);
   }
 
   private async displayLeaderboard(x: number, y: number, scoreSystem: ScoreSystem): Promise<void> {

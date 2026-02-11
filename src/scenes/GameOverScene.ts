@@ -34,24 +34,24 @@ export class GameOverScene extends Phaser.Scene {
 
     // Title
     this.add.text(W / 2, 80, 'GAME OVER', {
-      font: 'bold 48px "Segoe UI", Arial',
+      font: 'bold 40px "Segoe UI", Arial',
       color: '#ff4466',
     }).setOrigin(0.5);
 
     // Score Label
-    this.add.text(W / 2, 160, `SCORE`, {
+    this.add.text(W / 2, 140, `SCORE`, {
       font: '14px Arial',
       color: '#888899',
     }).setOrigin(0.5);
 
     // Score Value
-    this.add.text(W / 2, 205, `${this.score}`, {
-      font: 'bold 52px Arial',
+    this.add.text(W / 2, 185, `${this.score}`, {
+      font: 'bold 48px Arial',
       color: '#ffffff',
     }).setOrigin(0.5);
 
     // Leaderboard or Input starting position
-    this.checkLeaderboard(W / 2, 300);
+    this.checkLeaderboard(W / 2, 280);
   }
 
   private async checkLeaderboard(x: number, y: number): Promise<void> {
@@ -206,15 +206,15 @@ export class GameOverScene extends Phaser.Scene {
     }
 
     leaderboard.forEach((entry, i) => {
-      const yPos = y + 50 + i * 40;
+      const yPos = y + 50 + i * 50;
       const color = i === 0 ? '#ffee44' : i === 1 ? '#cccccc' : '#cd7f32';
       
-      this.add.text(x - 120, yPos, `${i + 1}. ${entry.name.toUpperCase()}`, {
+      this.add.text(x - 140, yPos, `${i + 1}. ${entry.name.toUpperCase()}`, {
         font: 'bold 18px Arial',
         color: color,
       });
 
-      this.add.text(x + 120, yPos, entry.score.toLocaleString(), {
+      this.add.text(x + 140, yPos, entry.score.toLocaleString(), {
         font: 'bold 18px Arial',
         color: '#ffffff',
       }).setOrigin(1, 0);

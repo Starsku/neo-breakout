@@ -76,8 +76,8 @@ export class LevelSystem {
   // ───────────────── Level 1: Rainbow Intro ─────────────────
   private level1(): BrickConfig[] {
     const bricks: BrickConfig[] = [];
-    for (let row = 0; row < 5; row++) {
-      for (let col = 0; col < 10; col++) {
+    for (let row = 0; row < 6; row++) {
+      for (let col = 0; col < 8; col++) {
         bricks.push(this.b(col, row, 'normal', 1, row));
       }
     }
@@ -88,13 +88,13 @@ export class LevelSystem {
   private level2(): BrickConfig[] {
     const bricks: BrickConfig[] = [];
     // Top 2 rows: armored
-    for (let col = 0; col < 10; col++) {
+    for (let col = 0; col < 8; col++) {
       bricks.push(this.b(col, 0, 'armored', 2, 0));
       bricks.push(this.b(col, 1, 'armored', 2, 1));
     }
-    // Bottom 3 rows: normal rainbow
-    for (let row = 2; row < 5; row++) {
-      for (let col = 0; col < 10; col++) {
+    // Bottom 4 rows: normal rainbow
+    for (let row = 2; row < 6; row++) {
+      for (let col = 0; col < 8; col++) {
         bricks.push(this.b(col, row, 'normal', 1, row - 2));
       }
     }
@@ -106,20 +106,20 @@ export class LevelSystem {
     const bricks: BrickConfig[] = [];
     // Row 0: indestructible walls on sides
     bricks.push(this.b(0, 0, 'indestructible'));
-    bricks.push(this.b(9, 0, 'indestructible'));
+    bricks.push(this.b(7, 0, 'indestructible'));
     // Row 0 center: armored
-    for (let col = 2; col < 8; col++) {
+    for (let col = 1; col < 7; col++) {
       bricks.push(this.b(col, 0, 'armored', 2, col % 3));
     }
-    // Row 1-2: mobile bricks
-    for (let row = 1; row <= 2; row++) {
-      for (let col = 1; col < 9; col++) {
+    // Row 1-3: mobile bricks
+    for (let row = 1; row <= 3; row++) {
+      for (let col = 1; col < 7; col++) {
         bricks.push(this.b(col, row, 'mobile', 1, col % 4));
       }
     }
-    // Row 3-4: normal
-    for (let row = 3; row < 5; row++) {
-      for (let col = 0; col < 10; col++) {
+    // Row 4-5: normal
+    for (let row = 4; row < 6; row++) {
+      for (let col = 0; col < 8; col++) {
         bricks.push(this.b(col, row, 'normal', 1, row));
       }
     }
@@ -130,17 +130,17 @@ export class LevelSystem {
   private level4(): BrickConfig[] {
     const bricks: BrickConfig[] = [];
     // Indestructible frame
-    for (let col = 0; col < 10; col++) {
+    for (let col = 0; col < 8; col++) {
       bricks.push(this.b(col, 0, 'indestructible'));
     }
-    for (let row = 1; row < 6; row++) {
+    for (let row = 1; row < 7; row++) {
       bricks.push(this.b(0, row, 'indestructible'));
-      bricks.push(this.b(9, row, 'indestructible'));
+      bricks.push(this.b(7, row, 'indestructible'));
     }
     // Inner: armored core
-    for (let row = 1; row < 4; row++) {
-      for (let col = 1; col < 9; col++) {
-        if (row === 2 && col >= 3 && col <= 6) {
+    for (let row = 1; row < 5; row++) {
+      for (let col = 1; col < 7; col++) {
+        if (row === 2 && col >= 2 && col <= 5) {
           bricks.push(this.b(col, row, 'armored', 3, col));
         } else {
           bricks.push(this.b(col, row, 'normal', 1, (row + col) % 5));
@@ -148,12 +148,12 @@ export class LevelSystem {
       }
     }
     // Mobile row
-    for (let col = 2; col < 8; col++) {
-      bricks.push(this.b(col, 4, 'mobile', 1, col % 4));
+    for (let col = 2; col < 6; col++) {
+      bricks.push(this.b(col, 5, 'mobile', 1, col % 4));
     }
     // Bottom normal
-    for (let col = 1; col < 9; col++) {
-      bricks.push(this.b(col, 5, 'normal', 1, col % 5));
+    for (let col = 1; col < 7; col++) {
+      bricks.push(this.b(col, 6, 'normal', 1, col % 5));
     }
     return bricks;
   }
@@ -161,16 +161,16 @@ export class LevelSystem {
   // ───────────────── Level 5: Chaos ─────────────────
   private level5(): BrickConfig[] {
     const bricks: BrickConfig[] = [];
-    for (let row = 0; row < 7; row++) {
-      for (let col = 0; col < 10; col++) {
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 8; col++) {
         // Diamond pattern of indestructible
-        const cx = 4.5,
-          cy = 3;
+        const cx = 3.5,
+          cy = 4;
         const dist = Math.abs(col - cx) + Math.abs(row - cy);
 
         if (dist <= 1.5) {
           bricks.push(this.b(col, row, 'armored', 3, col));
-        } else if (row === 0 || row === 6 || col === 0 || col === 9) {
+        } else if (row === 0 || row === 8 || col === 0 || col === 7) {
           bricks.push(this.b(col, row, 'indestructible'));
         } else if ((row + col) % 3 === 0) {
           bricks.push(this.b(col, row, 'mobile', 1, (row * col) % 4));
