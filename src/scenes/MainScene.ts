@@ -115,8 +115,8 @@ export class MainScene extends Phaser.Scene {
         (obj1: any, obj2: any) => this.handleBallPaddleCollision(obj1, obj2)
       );
 
-      // Ball to bricks
-      this.physics.add.overlap(
+      // Ball to bricks - USE COLLIDER for physics bounce
+      this.physics.add.collider(
         ball,
         this.bricks!,
         (obj1: any, obj2: any) => this.handleBrickCollision(obj1, obj2)
@@ -145,6 +145,9 @@ export class MainScene extends Phaser.Scene {
         (obj1: any, obj2: any) => this.handleLaserBrickCollision(obj1, obj2)
       );
     }
+    
+    // Disable bottom world bounds for balls
+    this.physics.world.setBoundsCollision(true, true, true, false);
   }
 
   private handleBallPaddleCollision(ball: any, paddle: any): void {
@@ -402,8 +405,10 @@ export class MainScene extends Phaser.Scene {
     // Update laser power-up
     const laserDuration = this.activePowerUps.get('laser');
     if (laserDuration && laserDuration > 0) {
-      if ((this.input.keyboard as any)?.isDown(Phaser.Input.Keyboard.KeyCodes.SPACE)) {
+      // Laser fires automatically every 500ms
+      if (!this.data.get('lastLaserTime') || time - this.data.get('lastLaserTime') > 500) {
         this.fireLaser();
+        this.data.set('lastLaserTime', time);
       }
       this.activePowerUps.set('laser', laserDuration - delta);
     } else if (laserDuration && laserDuration <= 0) {

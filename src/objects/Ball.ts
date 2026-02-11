@@ -17,6 +17,11 @@ export class Ball extends Phaser.Physics.Arcade.Sprite {
     this.setBounce(1, 1);
     this.setDrag(0);
     this.setFriction(0);
+    
+    // Disable bottom world bounds - ball should fall off
+    if (this.body) {
+      (this.body as Phaser.Physics.Arcade.Body).onWorldBounds = true;
+    }
 
     this.drawBall();
     this.launch();
