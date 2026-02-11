@@ -6,45 +6,26 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
   private moveRightActive: boolean = false;
   private baseWidth: number = GameConfig.PADDLE_WIDTH;
   private glow: Phaser.GameObjects.Graphics;
-  private static textureCreated = false;
 
   constructor(scene: Phaser.Scene) {
     const startX = GameConfig.WIDTH / 2;
     const startY = GameConfig.PADDLE_Y;
 
-    // Create texture once
-    if (!Paddle.textureCreated) {
-      const g = scene.make.graphics({ add: false } as any);
-      const w = GameConfig.PADDLE_WIDTH;
-      const h = GameConfig.PADDLE_HEIGHT;
-      // Glow
-      g.fillStyle(GameConfig.COLORS.NEON_BLUE, 0.15);
-      g.fillRoundedRect(-4, -4, w + 8, h + 8, 6);
-      g.fillStyle(GameConfig.COLORS.NEON_BLUE, 0.3);
-      g.fillRoundedRect(-2, -2, w + 4, h + 4, 5);
-      // Main body
-      g.fillStyle(0x1a2a4a, 1);
-      g.fillRoundedRect(0, 0, w, h, 4);
-      // Top highlight
-      g.fillStyle(GameConfig.COLORS.NEON_BLUE, 0.8);
-      g.fillRoundedRect(2, 1, w - 4, 3, 2);
-      // Edge accents
-      g.fillStyle(GameConfig.COLORS.NEON_PINK, 0.6);
-      g.fillRoundedRect(0, 0, 6, h, 3);
-      g.fillRoundedRect(w - 6, 0, 6, h, 3);
-      g.generateTexture('paddle-tex', w + 8, h + 8);
-      g.destroy();
-      Paddle.textureCreated = true;
-    }
-
-    super(scene, startX, startY, 'paddle-tex');
+    // Use the character sprite
+    super(scene, startX, startY, 'paddle-character');
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     this.setCollideWorldBounds(true);
     this.setImmovable(true);
     this.setDepth(5);
-    this.body!.setSize(this.baseWidth, GameConfig.PADDLE_HEIGHT);
+    
+    // Adjust physics body to the head area (the "paddle" part)
+    // The sprite seems to be a character carrying something or just the character itself.
+    // Usually, we want the collision to happen at the top of the sprite.
+    // Assuming the sprite is ~64x64 or similar.
+    // We'll set the body to be GameConfig.PADDLE_WIDTH wide and a small height at the top.
+    this.updatePhysicsBody();
 
     // Glow effect
     this.glow = scene.add.graphics();
@@ -83,6 +64,20 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     });
   }
 
+  private updatePhysicsBody(): void {
+    // We want the hit zone to be at the top of the character.
+    // Assuming the sprite's height is around this.height.
+    // We set the body height to PADDLE_HEIGHT and offset it to be at the top.
+    const bodyHeight = GameConfig.PADDLE_HEIGHT;
+    this.body!.setSize(this.baseWidth, bodyHeight);
+    
+    // Offset the body to the top of the sprite. 
+    // Sprite origin is usually 0.5, 0.5.
+    // If the sprite is 64px high, and we want the body (12px high) at the top:
+    // Offset Y would be 0.
+    this.body!.setOffset((this.width - this.baseWidth) / 2, 0);
+  }
+
   public updatePaddle(delta: number): void {
     const speed = GameConfig.PADDLE_SPEED * (delta / 1000);
 
@@ -96,9 +91,10 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     // Update glow
     this.glow.clear();
     this.glow.fillStyle(GameConfig.COLORS.NEON_BLUE, 0.08);
+    // Glow around the head area
     this.glow.fillRoundedRect(
       this.x - this.baseWidth / 2 - 8,
-      this.y - GameConfig.PADDLE_HEIGHT / 2 - 8,
+      this.y - this.displayHeight / 2 - 8,
       this.baseWidth + 16,
       GameConfig.PADDLE_HEIGHT + 16,
       8
@@ -112,14 +108,10 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
   public reset(): void {
     this.x = GameConfig.WIDTH / 2;
     this.baseWidth = GameConfig.PADDLE_WIDTH;
-    this.displayWidth = this.baseWidth + 8;
+    this.updatePhysicsBody();
   }
 
   public cleanUp(): void {
     this.glow.destroy();
-  }
-
-  public static resetTexture(): void {
-    Paddle.textureCreated = false;
   }
 }

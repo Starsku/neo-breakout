@@ -8,6 +8,10 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Preload paddle-character here if not in a separate BootScene
+    this.load.image('paddle-character', 'assets/paddle-character.png');
+    this.load.start();
+
     const W = GameConfig.WIDTH;
     const H = GameConfig.HEIGHT;
     const scoreSystem = new ScoreSystem();

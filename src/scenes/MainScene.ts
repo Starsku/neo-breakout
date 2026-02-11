@@ -45,6 +45,17 @@ export class MainScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Ensure paddle-character is loaded
+    if (!this.textures.exists('paddle-character')) {
+      this.load.image('paddle-character', 'assets/paddle-character.png');
+      this.load.once('complete', () => this.initGame());
+      this.load.start();
+    } else {
+      this.initGame();
+    }
+  }
+
+  private initGame(): void {
     this.audioSystem = new AudioSystem();
     this.levelSystem = new LevelSystem();
 
