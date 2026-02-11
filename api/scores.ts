@@ -1,13 +1,38 @@
 import { Redis } from '@upstash/redis';
 
-// Initialisation Upstash Redis (compatible Edge Runtime)
-const redis = new Redis({
-  url: process.env.REDIS_URL || '',
-  token: process.env.REDIS_TOKEN || '', // Upstash nécessite souvent un token séparé ou inclus dans l'URL
-});
+// Diagnostic log for REDIS_URL
+console.log("REDIS_URL starts with:", process.env.REDIS_URL?.substring(0, 10));
 
-// Note: Si REDIS_URL contient déjà les credentials au format Upstash (https://...), 
-// Redis.fromEnv() pourrait aussi être utilisé.
+let redis: Redis;
+
+try {
+  // Upstash/redis requires a URL starting with https:// for the REST API.
+  // If REDIS_URL starts with redis://, it's a TCP connection string (standard Redis).
+  const redisUrl = process.env.REDIS_URL || '';
+  
+  if (redisUrl.startsWith('redis://') || redisUrl.startsWith('rediss://')) {
+    console.warn("WARNING: REDIS_URL uses redis:// protocol but @upstash/redis expects https:// (REST).");
+    // We attempt to initialize it anyway, but @upstash/redis will likely fail if it's not a URL it understands.
+  }
+
+  redis = new Redis({
+    url: redisUrl,
+    token: process.env.REDIS_TOKEN || '',
+  });
+
+  // Test connection
+  (async () => {
+    try {
+      const pong = await redis.ping();
+      console.log("Redis PING result:", pong);
+    } catch (pingError) {
+      console.error("Redis PING failed during initialization:", pingError);
+    }
+  })();
+
+} catch (initError) {
+  console.error("Global Redis initialization error:", initError);
+}
 
 export default async function handler(request: Request) {
   try {
@@ -16,8 +41,8 @@ export default async function handler(request: Request) {
     if (method === 'GET') {
       let scores: any[] = [];
       try {
+        if (!redis) throw new Error("Redis client not initialized");
         const scoresRaw = await redis.get('leaderboard');
-        // Upstash redis.get() renvoie déjà l'objet parsé si c'est du JSON
         scores = typeof scoresRaw === 'string' ? JSON.parse(scoresRaw) : (scoresRaw || []);
       } catch (redisError) {
         console.error('Redis GET error:', redisError);
@@ -47,6 +72,7 @@ export default async function handler(request: Request) {
       let currentScores: any[] = [];
       
       try {
+        if (!redis) throw new Error("Redis client not initialized");
         const scoresRaw = await redis.get('leaderboard');
         currentScores = typeof scoresRaw === 'string' ? JSON.parse(scoresRaw) : (scoresRaw || []);
         
