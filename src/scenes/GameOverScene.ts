@@ -1,9 +1,12 @@
 import Phaser from 'phaser';
 import { GameConfig } from '../config/GameConfig';
+import { ScoreSystem } from '../systems/ScoreSystem';
 
 export class GameOverScene extends Phaser.Scene {
   private score: number = 0;
   private highScore: number = 0;
+  private scoreSystem!: ScoreSystem;
+  private nameInputVisible: boolean = false;
 
   constructor() {
     super({ key: 'GameOverScene' });
@@ -12,6 +15,8 @@ export class GameOverScene extends Phaser.Scene {
   init(data: any): void {
     this.score = data.score ?? 0;
     this.highScore = data.highScore ?? 0;
+    this.scoreSystem = new ScoreSystem();
+    this.nameInputVisible = false;
   }
 
   create(): void {
@@ -27,55 +32,114 @@ export class GameOverScene extends Phaser.Scene {
     bg.strokeRect(1, 1, W - 2, H - 2);
 
     // Title
-    this.add.text(W / 2, 100, 'GAME OVER', {
-      font: 'bold 54px "Segoe UI", Arial',
+    this.add.text(W / 2, 70, 'GAME OVER', {
+      font: 'bold 48px "Segoe UI", Arial',
       color: '#ff4466',
     }).setOrigin(0.5);
 
     // Score
-    this.add.text(W / 2, 200, `SCORE`, {
-      font: '16px Arial',
+    this.add.text(W / 2, 140, `SCORE`, {
+      font: '14px Arial',
       color: '#888899',
     }).setOrigin(0.5);
 
-    const scoreText = this.add.text(W / 2, 240, `${this.score}`, {
-      font: 'bold 48px Arial',
+    const scoreText = this.add.text(W / 2, 180, `${this.score}`, {
+      font: 'bold 42px Arial',
       color: '#ffffff',
     }).setOrigin(0.5);
 
-    // Animate score counting up
-    const counter = { val: 0 };
-    this.tweens.add({
-      targets: counter,
-      val: this.score,
-      duration: 1000,
-      ease: 'Power2',
-      onUpdate: () => {
-        scoreText.setText(`${Math.floor(counter.val)}`);
-      },
+    // Leaderboard or Input
+    if (this.scoreSystem.isTop3(this.score) && this.score > 0) {
+      this.showNameInput(W / 2, 280);
+    } else {
+      this.showLeaderboard(W / 2, 250);
+      this.createNavigationButtons(W, H);
+    }
+  }
+
+  private showNameInput(x: number, y: number): void {
+    this.nameInputVisible = true;
+    this.add.text(x, y - 40, 'NEW TOP 3 SCORE!', {
+      font: 'bold 20px Arial',
+      color: '#ffaa22',
+    }).setOrigin(0.5);
+
+    this.add.text(x, y, 'ENTER YOUR NAME (3-10 CHARS):', {
+      font: '14px Arial',
+      color: '#ffffff',
+    }).setOrigin(0.5);
+
+    let playerName = '';
+    const nameDisplay = this.add.text(x, y + 40, '_', {
+      font: 'bold 32px Courier New',
+      color: '#44ff88',
+      backgroundColor: '#112211',
+      padding: { x: 10, y: 5 }
+    }).setOrigin(0.5);
+
+    // Simple keyboard handler
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      if (!this.nameInputVisible) return;
+
+      if (event.key === 'Backspace' && playerName.length > 0) {
+        playerName = playerName.slice(0, -1);
+      } else if (event.key === 'Enter' && playerName.length >= 3) {
+        this.nameInputVisible = false;
+        this.scoreSystem.addToLeaderboard(playerName, this.score);
+        this.scene.restart(); // Refresh to show leaderboard
+      } else if (event.key.length === 1 && playerName.length < 10 && /[a-zA-Z0-9 ]/.test(event.key)) {
+        playerName += event.key;
+      }
+      nameDisplay.setText(playerName + (playerName.length < 10 ? '_' : ''));
     });
 
-    // High score
-    this.add.text(W / 2, 300, `HIGH SCORE: ${this.highScore}`, {
-      font: 'bold 20px Arial',
+    const submitBtn = this.add.text(x, y + 100, 'PRESS ENTER TO SAVE', {
+      font: 'bold 16px Arial',
+      color: '#888888'
+    }).setOrigin(0.5);
+    
+    this.tweens.add({
+      targets: submitBtn,
+      alpha: 0.3,
+      duration: 500,
+      yoyo: true,
+      repeat: -1
+    });
+  }
+
+  private showLeaderboard(x: number, y: number): void {
+    const leaderboard = this.scoreSystem.getLeaderboard();
+    
+    this.add.text(x, y, 'TOP 3 LEADERBOARD', {
+      font: 'bold 18px Arial',
       color: '#ffee44',
     }).setOrigin(0.5);
 
-    if (isNewRecord) {
-      const record = this.add.text(W / 2, 340, '★ NEW RECORD ★', {
-        font: 'bold 22px Arial',
-        color: '#ff44aa',
+    if (leaderboard.length === 0) {
+      this.add.text(x, y + 50, 'NO SCORES YET', {
+        font: '14px Arial',
+        color: '#666666'
       }).setOrigin(0.5);
-      this.tweens.add({
-        targets: record,
-        scale: { from: 1, to: 1.15 },
-        alpha: { from: 1, to: 0.7 },
-        duration: 600,
-        yoyo: true,
-        repeat: -1,
-      });
+      return;
     }
 
+    leaderboard.forEach((entry, i) => {
+      const yPos = y + 40 + i * 30;
+      const color = i === 0 ? '#ffee44' : i === 1 ? '#cccccc' : '#cd7f32';
+      
+      this.add.text(x - 120, yPos, `${i + 1}. ${entry.name.toUpperCase()}`, {
+        font: 'bold 16px Arial',
+        color: color,
+      });
+
+      this.add.text(x + 120, yPos, entry.score.toLocaleString(), {
+        font: 'bold 16px Arial',
+        color: '#ffffff',
+      }).setOrigin(1, 0);
+    });
+  }
+
+  private createNavigationButtons(W: number, H: number): void {
     // Retry button
     this.createButton(W / 2, H - 140, 'RETRY', GameConfig.COLORS.NEON_GREEN, () => {
       this.scene.start('MainScene');
@@ -88,7 +152,9 @@ export class GameOverScene extends Phaser.Scene {
 
     // SPACE to retry
     this.input.keyboard?.on('keydown-SPACE', () => {
-      this.scene.start('MainScene');
+      if (!this.nameInputVisible) {
+        this.scene.start('MainScene');
+      }
     });
   }
 

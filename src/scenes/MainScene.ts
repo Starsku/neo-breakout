@@ -13,7 +13,6 @@ export class MainScene extends Phaser.Scene {
   private balls: Ball[] = [];
   private bricks!: Phaser.Physics.Arcade.Group;
   private powerUps!: Phaser.Physics.Arcade.Group;
-  private laserProjectiles!: Phaser.Physics.Arcade.Group;
   private scoreSystem!: ScoreSystem;
   private audioSystem!: AudioSystem;
   private levelSystem!: LevelSystem;
@@ -31,7 +30,6 @@ export class MainScene extends Phaser.Scene {
   private lives: number = GameConfig.LIVES;
   private waitingToLaunch: boolean = true;
   private activePowerUps: Map<PowerUpType, number> = new Map();
-  private lastLaserTime: number = 0;
   private backgroundGraphics!: Phaser.GameObjects.Graphics;
 
   constructor() {
@@ -43,7 +41,6 @@ export class MainScene extends Phaser.Scene {
     this.lives = GameConfig.LIVES;
     this.waitingToLaunch = true;
     this.activePowerUps.clear();
-    this.lastLaserTime = 0;
     this.balls = [];
   }
 
@@ -57,7 +54,6 @@ export class MainScene extends Phaser.Scene {
     // Physics groups
     this.bricks = this.physics.add.group();
     this.powerUps = this.physics.add.group();
-    this.laserProjectiles = this.physics.add.group();
 
     // Disable bottom world bounds
     this.physics.world.setBoundsCollision(true, true, true, false);
@@ -150,11 +146,6 @@ export class MainScene extends Phaser.Scene {
         this.scoreSystem.resetCombo();
         return;
       }
-    }
-
-    // Fire laser if active
-    if (this.activePowerUps.has('laser')) {
-      this.fireLaser();
     }
   }
 
@@ -305,11 +296,6 @@ export class MainScene extends Phaser.Scene {
     this.physics.add.overlap(this.paddle, this.powerUps, (_, obj2: any) => {
       this.onPowerUpCaught(obj2 as PowerUp);
     });
-
-    // Laser hits bricks
-    this.physics.add.overlap(this.laserProjectiles, this.bricks, (obj1: any, obj2: any) => {
-      this.onLaserHitBrick(obj1, obj2 as Brick);
-    });
   }
 
   private onBallHitPaddle(ball: Ball, paddle: Paddle): void {
@@ -398,9 +384,6 @@ export class MainScene extends Phaser.Scene {
       case 'multiball':
         this.activateMultiball();
         break;
-      case 'laser':
-        this.activePowerUps.set('laser', GameConfig.POWERUP_DURATION);
-        break;
       case 'sticky':
         this.activateSticky();
         break;
@@ -408,35 +391,6 @@ export class MainScene extends Phaser.Scene {
         this.balls.forEach((b) => b.setMega(GameConfig.POWERUP_DURATION));
         break;
     }
-  }
-
-  private onLaserHitBrick(laser: any, brick: Brick): void {
-    if (!brick.active) return;
-
-    const destroyed = brick.hit();
-    if (destroyed) {
-      const points = brick.getPoints();
-      const bx = brick.x;
-      const by = brick.y;
-      const color = brick.getColor();
-
-      if (brick.body) {
-        (brick.body as Phaser.Physics.Arcade.Body).enable = false;
-      }
-      brick.setActive(false);
-      brick.setVisible(false);
-
-      this.scoreSystem.addScore(points, this.levelSystem.getSpeedMultiplier());
-      this.createParticles(bx, by, color);
-
-      this.time.delayedCall(10, () => {
-        if (brick && brick.scene) brick.destroy();
-        this.checkLevelComplete();
-      });
-    }
-
-    this.audioSystem.playSoundEffect('brick');
-    laser.destroy();
   }
 
   // ─────────── Power-ups ───────────
@@ -458,37 +412,6 @@ export class MainScene extends Phaser.Scene {
   private activateSticky(): void {
     // Next paddle hit will stick
     this.activePowerUps.set('sticky', GameConfig.POWERUP_DURATION);
-  }
-
-  private fireLaser(): void {
-    const now = this.time.now;
-    if (now - this.lastLaserTime < 250) return; // Rate limit (slightly adjusted)
-    this.lastLaserTime = now;
-
-    // Create a container to hold the laser and its glow
-    const laserX = this.paddle.x;
-    const laserY = this.paddle.y - 20;
-    
-    // Core of the laser (the visible beam)
-    const core = this.add.rectangle(0, 0, 4, 20, 0xffffff); // White core for neon effect
-    
-    // Glow effect
-    const glow = this.add.rectangle(0, 0, 8, 24, 0xff4466, 0.6);
-    
-    const laser = this.add.container(laserX, laserY, [glow, core]);
-    laser.setSize(8, 24);
-
-    this.physics.add.existing(laser);
-    const body = laser.body as Phaser.Physics.Arcade.Body;
-    body.setVelocityY(-700); // Faster movement
-    
-    // Ensure it's treated as a trigger/overlap
-    body.setAllowGravity(false);
-    
-    this.laserProjectiles.add(laser);
-
-    // Audio feedback
-    this.audioSystem.playSoundEffect('laser');
   }
 
   // ─────────── Particles (simple, compatible) ───────────
@@ -540,7 +463,6 @@ export class MainScene extends Phaser.Scene {
     });
     this.balls = [];
     this.powerUps.clear(true, true);
-    this.laserProjectiles.clear(true, true);
     this.activePowerUps.clear();
 
     // Speed up
@@ -612,7 +534,6 @@ export class MainScene extends Phaser.Scene {
     // Clear active powerups
     this.activePowerUps.clear();
     this.powerUps.clear(true, true);
-    this.laserProjectiles.clear(true, true);
 
     // Spawn new ball after delay
     this.time.delayedCall(600, () => {
@@ -675,23 +596,9 @@ export class MainScene extends Phaser.Scene {
       }
     });
 
-    // Auto-fire laser
-    if (this.activePowerUps.has('laser')) {
-      if (time - this.lastLaserTime > 300) {
-        this.fireLaser();
-      }
-    }
-
     // Clean up off-screen power-ups
     this.powerUps.children.entries.forEach((child) => {
       if ((child as any).y > GameConfig.HEIGHT + 30) {
-        child.destroy();
-      }
-    });
-
-    // Clean up off-screen lasers
-    this.laserProjectiles.children.entries.forEach((child) => {
-      if ((child as any).y < -20) {
         child.destroy();
       }
     });
@@ -706,7 +613,6 @@ export class MainScene extends Phaser.Scene {
     this.activePowerUps.forEach((remaining, type) => {
       const secs = Math.ceil(remaining / 1000);
       const labels: Record<string, string> = {
-        laser: `⚡${secs}s`,
         sticky: `◎${secs}s`,
         mega: `★${secs}s`,
       };

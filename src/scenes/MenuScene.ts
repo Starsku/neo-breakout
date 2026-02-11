@@ -114,11 +114,12 @@ export class MenuScene extends Phaser.Scene {
     const controls = [
       ['← → / Q D', 'Move paddle'],
       ['MOUSE', 'Aim paddle'],
-      ['SPACE / CLICK', 'Launch ball / Fire laser'],
+      ['SPACE / CLICK', 'Launch ball'],
       ['ESC', 'Pause'],
     ];
 
     let yPos = 400;
+    yPos = 390; // Shift up slightly
     controls.forEach(([key, desc]) => {
       this.add.text(W / 2 - 100, yPos, key, {
         font: 'bold 13px Arial',
@@ -128,13 +129,42 @@ export class MenuScene extends Phaser.Scene {
         font: '13px Arial',
         color: '#aaaacc',
       });
-      yPos += 24;
+      yPos += 22;
     });
 
     // Footer
-    this.add.text(W / 2, H - 20, 'v2.0 — 5 Levels • 4 Power-ups • Neon Style', {
+    this.add.text(W / 2, H - 15, 'v2.1 — 5 Levels • 3 Power-ups • Leaderboard', {
       font: '11px Arial',
       color: '#555577',
     }).setOrigin(0.5);
+
+    // Leaderboard
+    this.displayLeaderboard(W / 2, 420, scoreSystem);
+  }
+
+  private displayLeaderboard(x: number, y: number, scoreSystem: ScoreSystem): void {
+    const leaderboard = scoreSystem.getLeaderboard();
+    if (leaderboard.length === 0) return;
+
+    this.add.text(x, y + 85, 'TOP 3 RANKING', {
+      font: 'bold 16px Arial',
+      color: '#ffaa22',
+      letterSpacing: 2
+    }).setOrigin(0.5);
+
+    leaderboard.forEach((entry, i) => {
+      const yPos = y + 115 + i * 25;
+      const color = i === 0 ? '#ffee44' : i === 1 ? '#cccccc' : '#cd7f32';
+      
+      this.add.text(x - 100, yPos, `${i + 1}. ${entry.name.toUpperCase()}`, {
+        font: 'bold 14px Arial',
+        color: color,
+      });
+
+      this.add.text(x + 100, yPos, entry.score.toLocaleString(), {
+        font: 'bold 14px Arial',
+        color: '#ffffff',
+      }).setOrigin(1, 0);
+    });
   }
 }
