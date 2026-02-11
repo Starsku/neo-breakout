@@ -28,6 +28,15 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
+  input: {
+    mouse: {
+      preventDefaultWheel: true,
+      preventDefaultContextMenu: true,
+    },
+    touch: {
+      capture: true,
+    },
+  },
 };
 
 new Phaser.Game(config);

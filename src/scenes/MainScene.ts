@@ -78,6 +78,9 @@ export class MainScene extends Phaser.Scene {
       this.handleLaunchOrFire();
     });
 
+    // Fullscreen support on double tap or specific button could be added, 
+    // but for now let's ensure the canvas fits the screen.
+
     // Collisions
     this.setupCollisions();
   }

@@ -67,19 +67,19 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
 
     // Mouse/Touch
     scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (pointer.isDown || !scene.input.keyboard) {
-        this.x = Phaser.Math.Clamp(
-          pointer.x,
-          this.baseWidth / 2 + 10,
-          GameConfig.WIDTH - this.baseWidth / 2 - 10
-        );
-      } else {
-        this.x = Phaser.Math.Clamp(
-          pointer.x,
-          this.baseWidth / 2 + 10,
-          GameConfig.WIDTH - this.baseWidth / 2 - 10
-        );
-      }
+      this.x = Phaser.Math.Clamp(
+        pointer.x,
+        this.baseWidth / 2 + 10,
+        GameConfig.WIDTH - this.baseWidth / 2 - 10
+      );
+    });
+
+    scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.x = Phaser.Math.Clamp(
+        pointer.x,
+        this.baseWidth / 2 + 10,
+        GameConfig.WIDTH - this.baseWidth / 2 - 10
+      );
     });
   }
 
