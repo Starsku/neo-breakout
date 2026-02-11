@@ -123,6 +123,11 @@ export class MainScene extends Phaser.Scene {
     this.physics.add.overlap(ball, this.bricks, (obj1: any, obj2: any) => {
       this.onBallHitBrick(obj1 as Ball, obj2 as Brick);
     });
+
+    // Ball also collects power-ups on contact
+    this.physics.add.overlap(ball, this.powerUps, (_: any, obj2: any) => {
+      this.onPowerUpCaught(obj2 as PowerUp);
+    });
   }
 
   private handleLaunchOrFire(): void {
