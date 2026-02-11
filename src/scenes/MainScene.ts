@@ -68,6 +68,30 @@ export class MainScene extends Phaser.Scene {
     const ball = new Ball(this);
     ball.stick(this.paddle.x);
     this.balls.push(ball);
+    this.setupBallCollisions(ball);
+  }
+  
+  private setupBallCollisions(ball: Ball): void {
+    // Ball to paddle
+    this.physics.add.collider(
+      ball,
+      this.paddle,
+      (obj1: any, obj2: any) => this.handleBallPaddleCollision(obj1, obj2)
+    );
+
+    // Ball to bricks - USE COLLIDER for physics bounce
+    this.physics.add.collider(
+      ball,
+      this.bricks!,
+      (obj1: any, obj2: any) => this.handleBrickCollision(obj1, obj2)
+    );
+
+    // Ball to powerups
+    this.physics.add.overlap(
+      ball,
+      this.powerUps!,
+      () => {} // Paddle catches powerups
+    );
   }
 
   private createBricks(): void {
@@ -106,29 +130,6 @@ export class MainScene extends Phaser.Scene {
 
   private setupCollisions(): void {
     if (!this.bricks || !this.powerUps) return;
-
-    // Ball to paddle
-    this.balls.forEach((ball) => {
-      this.physics.add.collider(
-        ball,
-        this.paddle,
-        (obj1: any, obj2: any) => this.handleBallPaddleCollision(obj1, obj2)
-      );
-
-      // Ball to bricks - USE COLLIDER for physics bounce
-      this.physics.add.collider(
-        ball,
-        this.bricks!,
-        (obj1: any, obj2: any) => this.handleBrickCollision(obj1, obj2)
-      );
-
-      // Ball to powerups
-      this.physics.add.overlap(
-        ball,
-        this.powerUps!,
-        () => {} // Paddle catches powerups
-      );
-    });
 
     // Paddle to powerups
     this.physics.add.overlap(
@@ -244,11 +245,12 @@ export class MainScene extends Phaser.Scene {
       const b2 = new Ball(this, pos.x + 20, pos.y);
       b1.launch();
       b2.launch();
+      this.setupBallCollisions(b1);
+      this.setupBallCollisions(b2);
       return [b1, b2];
     });
 
     this.balls.push(...newBalls);
-    this.setupCollisions();
   }
 
   private activateLaser(): void {
