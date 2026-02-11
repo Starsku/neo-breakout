@@ -119,7 +119,8 @@ export class MainScene extends Phaser.Scene {
       this.onBallHitPaddle(obj1 as Ball, obj2 as Paddle);
     });
 
-    this.physics.add.collider(ball, this.bricks, (obj1: any, obj2: any) => {
+    // Use overlap + manual bounce to avoid Phaser freeze on brick destruction
+    this.physics.add.overlap(ball, this.bricks, (obj1: any, obj2: any) => {
       this.onBallHitBrick(obj1 as Ball, obj2 as Brick);
     });
   }
@@ -265,10 +266,31 @@ export class MainScene extends Phaser.Scene {
   private onBallHitBrick(ball: Ball, brick: Brick): void {
     if (!brick.active) return;
 
+    const isMega = ball.getMega();
     const brickType = brick.getType();
     const brickX = brick.x;
     const brickY = brick.y;
     const brickColor = brick.getColor();
+
+    // Manual bounce (since we use overlap, not collider)
+    if (!isMega) {
+      const ballBody = ball.body as Phaser.Physics.Arcade.Body;
+      if (ballBody) {
+        // Determine bounce direction based on relative position
+        const dx = ball.x - brickX;
+        const dy = ball.y - brickY;
+        const absDx = Math.abs(dx) / (GameConfig.BRICK_WIDTH / 2);
+        const absDy = Math.abs(dy) / (GameConfig.BRICK_HEIGHT / 2);
+
+        if (absDy > absDx) {
+          // Hit top or bottom - reverse Y
+          ballBody.velocity.y *= -1;
+        } else {
+          // Hit left or right - reverse X
+          ballBody.velocity.x *= -1;
+        }
+      }
+    }
 
     const destroyed = brick.hit();
 
@@ -282,7 +304,7 @@ export class MainScene extends Phaser.Scene {
       brick.setActive(false);
       brick.setVisible(false);
 
-      // Score
+      // Score (addScore auto-increments combo)
       this.scoreSystem.addScore(points, this.levelSystem.getSpeedMultiplier());
 
       // Power-up chance
@@ -309,11 +331,6 @@ export class MainScene extends Phaser.Scene {
 
     // Acceleration
     ball.accelerate(GameConfig.INTRA_LEVEL_ACCELERATION);
-
-    // Mega ball passes through
-    if (ball.getMega() && destroyed) {
-      // Don't bounce - keep velocity
-    }
   }
 
   private onPowerUpCaught(powerUp: PowerUp): void {
