@@ -87,15 +87,19 @@ export class VictoryScene extends Phaser.Scene {
 
   private showNameInput(x: number, y: number): void {
     this.nameInputVisible = true;
-    this.add.text(x, y - 40, 'NEW TOP 3 SCORE!', {
+    const inputGroup = this.add.group();
+
+    const title = this.add.text(x, y - 40, 'NEW TOP 3 SCORE!', {
       font: 'bold 20px Arial',
       color: '#ffaa22',
     }).setOrigin(0.5);
+    inputGroup.add(title);
 
-    this.add.text(x, y, 'ENTER YOUR NAME (3-10 CHARS):', {
+    const prompt = this.add.text(x, y, 'ENTER YOUR NAME (3-10 CHARS):', {
       font: '14px Arial',
       color: '#ffffff',
     }).setOrigin(0.5);
+    inputGroup.add(prompt);
 
     let playerName = '';
     const nameDisplay = this.add.text(x, y + 40, '_', {
@@ -104,27 +108,13 @@ export class VictoryScene extends Phaser.Scene {
       backgroundColor: '#112211',
       padding: { x: 10, y: 5 }
     }).setOrigin(0.5);
-
-    // Simple keyboard handler
-    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
-      if (!this.nameInputVisible) return;
-
-      if (event.key === 'Backspace' && playerName.length > 0) {
-        playerName = playerName.slice(0, -1);
-      } else if (event.key === 'Enter' && playerName.length >= 3) {
-        this.nameInputVisible = false;
-        this.scoreSystem.addToLeaderboard(playerName, this.score);
-        this.scene.restart(); // Refresh to show leaderboard
-      } else if (event.key.length === 1 && playerName.length < 10 && /[a-zA-Z0-9 ]/.test(event.key)) {
-        playerName += event.key;
-      }
-      nameDisplay.setText(playerName + (playerName.length < 10 ? '_' : ''));
-    });
+    inputGroup.add(nameDisplay);
 
     const submitBtn = this.add.text(x, y + 100, 'PRESS ENTER TO SAVE', {
       font: 'bold 16px Arial',
       color: '#888888'
     }).setOrigin(0.5);
+    inputGroup.add(submitBtn);
     
     this.tweens.add({
       targets: submitBtn,
@@ -133,6 +123,59 @@ export class VictoryScene extends Phaser.Scene {
       yoyo: true,
       repeat: -1
     });
+
+    // Simple keyboard handler
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!this.nameInputVisible) return;
+
+      if (event.key === 'Backspace' && playerName.length > 0) {
+        playerName = playerName.slice(0, -1);
+      } else if (event.key === 'Enter' && playerName.length >= 3) {
+        this.nameInputVisible = false;
+        this.input.keyboard?.off('keydown', onKeyDown);
+        
+        // 1. Masquer l'input
+        inputGroup.clear(true, true);
+
+        // 2. Afficher message de confirmation avec animation
+        const confirmText = this.add.text(x, y, 'Score enregistré !', {
+          font: 'bold 24px Arial',
+          color: '#44ff88'
+        }).setOrigin(0.5).setAlpha(0).setScale(0.5);
+
+        this.tweens.add({
+          targets: confirmText,
+          alpha: 1,
+          scale: 1,
+          y: y - 20,
+          duration: 500,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            this.time.delayedCall(1000, () => {
+              this.tweens.add({
+                targets: confirmText,
+                alpha: 0,
+                duration: 500,
+                onComplete: () => {
+                  confirmText.destroy();
+                  // 3. Afficher leaderboard mis à jour
+                  this.showLeaderboard(x, 250);
+                  // 4. Réafficher boutons navigation
+                  this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
+                }
+              });
+            });
+          }
+        });
+
+        this.scoreSystem.addToLeaderboard(playerName, this.score);
+      } else if (event.key.length === 1 && playerName.length < 10 && /[a-zA-Z0-9 ]/.test(event.key)) {
+        playerName += event.key;
+      }
+      nameDisplay.setText(playerName + (playerName.length < 10 ? '_' : ''));
+    };
+
+    this.input.keyboard?.on('keydown', onKeyDown);
   }
 
   private showLeaderboard(x: number, y: number): void {
