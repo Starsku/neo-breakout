@@ -18,12 +18,12 @@
   "author": "Forge",
   "license": "MIT",
   "dependencies": {
-    "@upstash/redis": "^1.36.2",
-    "@vercel/kv": "^1.0.1",
+    "ioredis": "^5.9.2",
     "phaser": "^3.55.2"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
+    "@vercel/node": "^5.6.2",
     "terser": "^5.46.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.8"
