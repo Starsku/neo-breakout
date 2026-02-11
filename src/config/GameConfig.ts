@@ -18,7 +18,7 @@ export const GameConfig = {
   BRICK_PADDING_X: 4,
   BRICK_PADDING_Y: 4,
   BRICK_OFFSET_TOP: 100,
-  BRICK_OFFSET_LEFT: 25,
+  BRICK_OFFSET_LEFT: 9,
 
   // Levels
   LEVEL_COUNT: 5,

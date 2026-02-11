@@ -146,7 +146,7 @@ export class VictoryScene extends Phaser.Scene {
       boxShadow: '0 0 10px rgba(68, 255, 136, 0.2)'
     });
 
-    const phaserDomElement = this.add.dom(x, y + 90, hiddenInput).setDepth(11);
+    const phaserDomElement = this.add.dom(x, y + 90, hiddenInput).setOrigin(0.5).setDepth(11);
     hiddenInput.focus();
     
     const updateName = (val: string) => {
