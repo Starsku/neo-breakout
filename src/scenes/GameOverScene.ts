@@ -57,19 +57,16 @@ export class GameOverScene extends Phaser.Scene {
       color: '#ffee44',
     }).setOrigin(0.5);
 
-    try {
-      // Timeout after 3 seconds if API hangs
-      const leaderboardPromise = this.scoreSystem.refreshLeaderboard();
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000));
-      
-      await Promise.race([leaderboardPromise, timeoutPromise]);
-    } catch (err) {
-      console.warn('Leaderboard check failed or timed out:', err);
-    } finally {
-      loadingText.destroy();
-    }
+    await this.scoreSystem.refreshLeaderboard();
+    loadingText.destroy();
     
-    if (this.scoreSystem.isTop3(this.score) && this.score > 0) {
+    if (this.scoreSystem.hasApiError()) {
+      this.add.text(x, y, 'CONNECTION ERROR', {
+        font: 'bold 20px Arial',
+        color: '#ff4444',
+      }).setOrigin(0.5);
+      this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
+    } else if (this.scoreSystem.isTop3(this.score) && this.score > 0) {
       this.showNameInput(x, 280);
     } else {
       this.showLeaderboard(x, y);
@@ -156,7 +153,14 @@ export class GameOverScene extends Phaser.Scene {
 
       this.scoreSystem.addToLeaderboard(sanitizedName, this.score).then(() => {
         submittingText.destroy();
-        this.showLeaderboard(x, 250);
+        if (this.scoreSystem.hasApiError()) {
+           this.add.text(x, 250, 'SUBMISSION FAILED (TIMEOUT)', {
+             font: 'bold 20px Arial',
+             color: '#ff4444',
+           }).setOrigin(0.5);
+        } else {
+           this.showLeaderboard(x, 250);
+        }
         this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
       }).catch(err => {
         console.error('Submission error:', err);

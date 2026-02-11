@@ -9,6 +9,7 @@ export class ScoreSystem {
   private highScore: number = 0;
   private combo: number = 0;
   private leaderboard: LeaderboardEntry[] = [];
+  private apiError: boolean = false;
 
   constructor() {
     this.loadHighScore();
@@ -17,17 +18,29 @@ export class ScoreSystem {
   }
 
   public async refreshLeaderboard(): Promise<LeaderboardEntry[]> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
     try {
       console.log('Fetching leaderboard...');
-      const response = await fetch('/api/scores');
+      const response = await fetch('/api/scores', { signal: controller.signal });
+      clearTimeout(timeoutId);
+
       if (response.ok) {
         this.leaderboard = await response.json();
+        this.apiError = false;
         console.log('Leaderboard updated:', this.leaderboard);
       } else {
         console.error('Leaderboard response not OK:', response.status);
+        this.apiError = true;
       }
-    } catch (error) {
-      console.error('Failed to fetch leaderboard:', error);
+    } catch (error: any) {
+      this.apiError = true;
+      if (error.name === 'AbortError') {
+        console.error('Leaderboard fetch timed out');
+      } else {
+        console.error('Failed to fetch leaderboard:', error);
+      }
     }
     return this.leaderboard;
   }
@@ -83,39 +96,56 @@ export class ScoreSystem {
     return this.leaderboard;
   }
 
+  public hasApiError(): boolean {
+    return this.apiError;
+  }
+
   public isTop3(score: number): boolean {
+    if (this.apiError) return false;
+    
     console.log('Checking isTop3 for score:', score, 'against leaderboard:', this.leaderboard);
     if (this.leaderboard.length < 3) {
-      console.log('Leaderboard has less than 3 entries, true');
       return true;
     }
     const threshold = this.leaderboard[2].score;
-    const result = score > threshold;
-    console.log(`Threshold is ${threshold}, result is ${result}`);
-    return result;
+    return score > threshold;
   }
 
   public async addToLeaderboard(name: string, score: number): Promise<void> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
     try {
       console.log('Sending score to API...', { name, score });
       const response = await fetch('/api/scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, score })
+        body: JSON.stringify({ name, score }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
+
       if (response.ok) {
         this.leaderboard = await response.json();
+        this.apiError = false;
         console.log('Leaderboard updated after POST:', this.leaderboard);
       } else {
         console.error('API POST failed with status:', response.status);
+        this.apiError = true;
       }
-    } catch (error) {
-      console.error('Failed to update leaderboard:', error);
+    } catch (error: any) {
+      this.apiError = true;
+      if (error.name === 'AbortError') {
+        console.error('Leaderboard POST timed out');
+      } else {
+        console.error('Failed to update leaderboard:', error);
+      }
     }
   }
 
   reset(): void {
     this.score = 0;
     this.combo = 0;
+    this.apiError = false;
   }
 }

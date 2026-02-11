@@ -18,8 +18,8 @@
   "author": "Forge",
   "license": "MIT",
   "dependencies": {
+    "@upstash/redis": "^1.36.2",
     "@vercel/kv": "^1.0.1",
-    "ioredis": "^5.9.2",
     "phaser": "^3.55.2"
   },
   "devDependencies": {

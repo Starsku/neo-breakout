@@ -1,10 +1,13 @@
-import Redis from 'ioredis';
+import { Redis } from '@upstash/redis';
 
-// Initialisation Redis avec options de reconnexion
-const redis = new Redis(process.env.REDIS_URL || '', {
-  maxRetriesPerRequest: 1,
-  connectTimeout: 5000,
+// Initialisation Upstash Redis (compatible Edge Runtime)
+const redis = new Redis({
+  url: process.env.REDIS_URL || '',
+  token: process.env.REDIS_TOKEN || '', // Upstash nécessite souvent un token séparé ou inclus dans l'URL
 });
+
+// Note: Si REDIS_URL contient déjà les credentials au format Upstash (https://...), 
+// Redis.fromEnv() pourrait aussi être utilisé.
 
 export default async function handler(request: Request) {
   try {
@@ -14,15 +17,15 @@ export default async function handler(request: Request) {
       let scores: any[] = [];
       try {
         const scoresRaw = await redis.get('leaderboard');
-        scores = scoresRaw ? JSON.parse(scoresRaw) : [];
+        // Upstash redis.get() renvoie déjà l'objet parsé si c'est du JSON
+        scores = typeof scoresRaw === 'string' ? JSON.parse(scoresRaw) : (scoresRaw || []);
       } catch (redisError) {
         console.error('Redis GET error:', redisError);
-        // Fallback to empty leaderboard if Redis fails
       }
       
-      const topScores = scores
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .slice(0, 3);
+      const topScores = Array.isArray(scores) 
+        ? scores.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, 3)
+        : [];
       
       return new Response(JSON.stringify(topScores), {
         status: 200,
@@ -32,10 +35,8 @@ export default async function handler(request: Request) {
 
     if (method === 'POST') {
       const { name, score } = await request.json();
-      console.log('Received score submit:', { name, score });
       
       if (!name || score === undefined) {
-        console.warn('Invalid score data received');
         return new Response(JSON.stringify({ error: 'Missing name or score' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
@@ -47,11 +48,12 @@ export default async function handler(request: Request) {
       
       try {
         const scoresRaw = await redis.get('leaderboard');
-        currentScores = scoresRaw ? JSON.parse(scoresRaw) : [];
+        currentScores = typeof scoresRaw === 'string' ? JSON.parse(scoresRaw) : (scoresRaw || []);
+        
+        if (!Array.isArray(currentScores)) currentScores = [];
         
         currentScores.push({ name, score, date });
 
-        // Sort and keep top 10 to prevent bloat
         const updatedScores = currentScores
           .sort((a, b) => (b.score || 0) - (a.score || 0))
           .slice(0, 10);
@@ -60,8 +62,6 @@ export default async function handler(request: Request) {
         currentScores = updatedScores;
       } catch (redisError) {
         console.error('Redis POST error:', redisError);
-        // If Redis is down, we can't save but let's not crash the game
-        // We add to local list for the immediate response if possible
         currentScores.push({ name, score, date });
         currentScores.sort((a, b) => b.score - a.score);
       }

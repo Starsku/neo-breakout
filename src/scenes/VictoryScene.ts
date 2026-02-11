@@ -81,9 +81,21 @@ export class VictoryScene extends Phaser.Scene {
   }
 
   private async checkLeaderboard(x: number, y: number): Promise<void> {
+    const loadingText = this.add.text(x, y, 'CHECKING SCORE...', {
+      font: 'bold 18px Arial',
+      color: '#ffee44',
+    }).setOrigin(0.5);
+
     await this.scoreSystem.refreshLeaderboard();
+    loadingText.destroy();
     
-    if (this.scoreSystem.isTop3(this.score) && this.score > 0) {
+    if (this.scoreSystem.hasApiError()) {
+      this.add.text(x, y, 'CONNECTION ERROR', {
+        font: 'bold 20px Arial',
+        color: '#ff4444',
+      }).setOrigin(0.5);
+      this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
+    } else if (this.scoreSystem.isTop3(this.score) && this.score > 0) {
       this.showNameInput(x, 280);
     } else {
       this.showLeaderboard(x, y);
@@ -170,7 +182,14 @@ export class VictoryScene extends Phaser.Scene {
 
       this.scoreSystem.addToLeaderboard(sanitizedName, this.score).then(() => {
         submittingText.destroy();
-        this.showLeaderboard(x, 250);
+        if (this.scoreSystem.hasApiError()) {
+           this.add.text(x, 250, 'SUBMISSION FAILED (TIMEOUT)', {
+             font: 'bold 20px Arial',
+             color: '#ff4444',
+           }).setOrigin(0.5);
+        } else {
+           this.showLeaderboard(x, 250);
+        }
         this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
       }).catch(err => {
         console.error('Submission error:', err);
