@@ -89,9 +89,6 @@ export class MenuScene extends Phaser.Scene {
   }
 
   update(): void {
-    // Handle spacebar to start
-    if ((this.input.keyboard as any)?.isDown(Phaser.Input.Keyboard.KeyCodes.SPACE)) {
-      this.scene.start('MainScene', { scoreSystem: this.scoreSystem });
-    }
+    // Spacebar is handled via the Play button click
   }
 }
