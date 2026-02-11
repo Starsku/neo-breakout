@@ -31,12 +31,13 @@ const config: Phaser.Types.Core.GameConfig = {
   input: {
     mouse: {
       preventDefaultWheel: true,
-      preventDefaultContextMenu: true,
     },
     touch: {
       capture: true,
     },
   },
 };
+
+window.addEventListener('contextmenu', e => e.preventDefault());
 
 new Phaser.Game(config);
