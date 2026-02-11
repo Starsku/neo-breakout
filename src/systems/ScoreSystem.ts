@@ -12,33 +12,21 @@ export class ScoreSystem {
 
   constructor() {
     this.loadHighScore();
-    this.loadLeaderboard();
-    this.cleanupLeaderboard();
+    // Non-blocking load
+    this.refreshLeaderboard();
   }
 
-  private cleanupLeaderboard(): void {
-    const uniqueEntries = new Map<string, LeaderboardEntry>();
-    
-    this.leaderboard.forEach(entry => {
-      const existing = uniqueEntries.get(entry.name);
-      if (!existing || entry.score > existing.score) {
-        uniqueEntries.set(entry.name, entry);
-      }
-    });
-
-    this.leaderboard = Array.from(uniqueEntries.values())
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
-    
-    this.saveLeaderboard();
-  }
-
-  private saveLeaderboard(): void {
+  public async refreshLeaderboard(): Promise<LeaderboardEntry[]> {
     try {
-      localStorage.setItem('neo-breakout-leaderboard', JSON.stringify(this.leaderboard));
-    } catch {
-      // Silent fail
+      const response = await fetch('/api/scores');
+      if (response.ok) {
+        this.leaderboard = await response.json();
+      }
+    } catch (error) {
+      console.error('Failed to fetch leaderboard:', error);
+      // Fallback to local if absolutely necessary or just keep empty
     }
+    return this.leaderboard;
   }
 
   addScore(points: number, speedMultiplier: number = 1): void {
@@ -92,45 +80,24 @@ export class ScoreSystem {
     return this.leaderboard;
   }
 
-  private loadLeaderboard(): void {
-    try {
-      const saved = localStorage.getItem('neo-breakout-leaderboard');
-      this.leaderboard = saved ? JSON.parse(saved) : [];
-    } catch {
-      this.leaderboard = [];
-    }
-  }
-
   public isTop3(score: number): boolean {
     if (this.leaderboard.length < 3) return true;
     return score > this.leaderboard[this.leaderboard.length - 1].score;
   }
 
-  public addToLeaderboard(name: string, score: number): void {
-    const existingIndex = this.leaderboard.findIndex(e => e.name === name);
-    
-    if (existingIndex !== -1) {
-      if (score > this.leaderboard[existingIndex].score) {
-        this.leaderboard[existingIndex] = {
-          name,
-          score,
-          date: new Date().toLocaleDateString(),
-        };
-      } else {
-        // Current score is not better than the one already in leaderboard for this name
-        return;
-      }
-    } else {
-      this.leaderboard.push({
-        name,
-        score,
-        date: new Date().toLocaleDateString(),
+  public async addToLeaderboard(name: string, score: number): Promise<void> {
+    try {
+      const response = await fetch('/api/scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, score })
       });
+      if (response.ok) {
+        this.leaderboard = await response.json();
+      }
+    } catch (error) {
+      console.error('Failed to update leaderboard:', error);
     }
-
-    this.leaderboard.sort((a, b) => b.score - a.score);
-    this.leaderboard = this.leaderboard.slice(0, 3);
-    this.saveLeaderboard();
   }
 
   reset(): void {

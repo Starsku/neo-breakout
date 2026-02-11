@@ -60,7 +60,7 @@ export class VictoryScene extends Phaser.Scene {
     }
 
     // Title
-    const title = this.add.text(W / 2, 60, '★ VICTORY ★', {
+    this.add.text(W / 2, 60, '★ VICTORY ★', {
       font: 'bold 48px "Segoe UI", Arial',
       color: '#44ff88',
     }).setOrigin(0.5);
@@ -138,37 +138,18 @@ export class VictoryScene extends Phaser.Scene {
         inputGroup.clear(true, true);
 
         // 2. Afficher message de confirmation avec animation
-        const confirmText = this.add.text(x, y, 'Score enregistré !', {
+        const confirmText = this.add.text(x, y, 'Saving...', {
           font: 'bold 24px Arial',
           color: '#44ff88'
-        }).setOrigin(0.5).setAlpha(0).setScale(0.5);
+        }).setOrigin(0.5);
 
-        this.tweens.add({
-          targets: confirmText,
-          alpha: 1,
-          scale: 1,
-          y: y - 20,
-          duration: 500,
-          ease: 'Back.easeOut',
-          onComplete: () => {
-            this.time.delayedCall(1000, () => {
-              this.tweens.add({
-                targets: confirmText,
-                alpha: 0,
-                duration: 500,
-                onComplete: () => {
-                  confirmText.destroy();
-                  // 3. Afficher leaderboard mis à jour
-                  this.showLeaderboard(x, 250);
-                  // 4. Réafficher boutons navigation
-                  this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
-                }
-              });
-            });
-          }
+        this.scoreSystem.addToLeaderboard(playerName, this.score).then(() => {
+          confirmText.destroy();
+          // 3. Afficher leaderboard mis à jour
+          this.showLeaderboard(x, 250);
+          // 4. Réafficher boutons navigation
+          this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
         });
-
-        this.scoreSystem.addToLeaderboard(playerName, this.score);
       } else if (event.key.length === 1 && playerName.length < 10 && /[a-zA-Z0-9 ]/.test(event.key)) {
         playerName += event.key;
       }
@@ -178,13 +159,15 @@ export class VictoryScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown', onKeyDown);
   }
 
-  private showLeaderboard(x: number, y: number): void {
-    const leaderboard = this.scoreSystem.getLeaderboard();
-    
-    this.add.text(x, y, 'TOP 3 LEADERBOARD', {
+  private async showLeaderboard(x: number, y: number): Promise<void> {
+    const title = this.add.text(x, y, 'LOADING LEADERBOARD...', {
       font: 'bold 18px Arial',
       color: '#ffee44',
     }).setOrigin(0.5);
+
+    const leaderboard = await this.scoreSystem.refreshLeaderboard();
+    
+    title.setText('TOP 3 LEADERBOARD');
 
     if (leaderboard.length === 0) {
       this.add.text(x, y + 50, 'NO SCORES YET', {

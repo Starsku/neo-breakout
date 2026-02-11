@@ -142,15 +142,21 @@ export class MenuScene extends Phaser.Scene {
     this.displayLeaderboard(W / 2, 420, scoreSystem);
   }
 
-  private displayLeaderboard(x: number, y: number, scoreSystem: ScoreSystem): void {
-    const leaderboard = scoreSystem.getLeaderboard();
-    if (leaderboard.length === 0) return;
-
-    this.add.text(x, y + 85, 'TOP 3 RANKING', {
+  private async displayLeaderboard(x: number, y: number, scoreSystem: ScoreSystem): Promise<void> {
+    const title = this.add.text(x, y + 85, 'LOADING LEADERBOARD...', {
       font: 'bold 16px Arial',
       color: '#ffaa22',
       letterSpacing: 2
     }).setOrigin(0.5);
+
+    const leaderboard = await scoreSystem.refreshLeaderboard();
+    
+    if (leaderboard.length === 0) {
+      title.setText('NO SCORES YET');
+      return;
+    }
+
+    title.setText('TOP 3 RANKING');
 
     leaderboard.forEach((entry, i) => {
       const yPos = y + 115 + i * 25;
