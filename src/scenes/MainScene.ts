@@ -462,24 +462,33 @@ export class MainScene extends Phaser.Scene {
 
   private fireLaser(): void {
     const now = this.time.now;
-    if (now - this.lastLaserTime < 200) return; // Rate limit
+    if (now - this.lastLaserTime < 250) return; // Rate limit (slightly adjusted)
     this.lastLaserTime = now;
 
-    const laser = this.add.rectangle(
-      this.paddle.x,
-      this.paddle.y - 20,
-      3,
-      16,
-      0xff4466
-    );
+    // Create a container to hold the laser and its glow
+    const laserX = this.paddle.x;
+    const laserY = this.paddle.y - 20;
+    
+    // Core of the laser (the visible beam)
+    const core = this.add.rectangle(0, 0, 4, 20, 0xffffff); // White core for neon effect
+    
+    // Glow effect
+    const glow = this.add.rectangle(0, 0, 8, 24, 0xff4466, 0.6);
+    
+    const laser = this.add.container(laserX, laserY, [glow, core]);
+    laser.setSize(8, 24);
+
     this.physics.add.existing(laser);
-    (laser.body as Phaser.Physics.Arcade.Body).setVelocityY(-500);
+    const body = laser.body as Phaser.Physics.Arcade.Body;
+    body.setVelocityY(-700); // Faster movement
+    
+    // Ensure it's treated as a trigger/overlap
+    body.setAllowGravity(false);
+    
     this.laserProjectiles.add(laser);
 
-    // Auto-destroy after 2s
-    this.time.delayedCall(2000, () => {
-      if (laser && laser.scene) laser.destroy();
-    });
+    // Audio feedback
+    this.audioSystem.playSoundEffect('laser');
   }
 
   // ─────────── Particles (simple, compatible) ───────────

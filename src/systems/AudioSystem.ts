@@ -34,13 +34,18 @@ export class AudioSystem {
   }
 
   playSoundEffect(
-    type: 'paddle' | 'brick' | 'armor' | 'powerup' | 'loss' | 'launch' | 'levelup',
+    type: 'paddle' | 'brick' | 'armor' | 'powerup' | 'loss' | 'launch' | 'levelup' | 'laser',
     combo: number = 0
   ): void {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
     switch (type) {
+      case 'laser': {
+        this.tone(1200, 0.05, 'sawtooth', this.volume * 0.3);
+        setTimeout(() => this.tone(800, 0.1, 'sawtooth', this.volume * 0.2), 30);
+        break;
+      }
       case 'paddle': {
         const f = 300 + combo * 15;
         this.tone(f, 0.08, 'triangle');
