@@ -13,6 +13,32 @@ export class ScoreSystem {
   constructor() {
     this.loadHighScore();
     this.loadLeaderboard();
+    this.cleanupLeaderboard();
+  }
+
+  private cleanupLeaderboard(): void {
+    const uniqueEntries = new Map<string, LeaderboardEntry>();
+    
+    this.leaderboard.forEach(entry => {
+      const existing = uniqueEntries.get(entry.name);
+      if (!existing || entry.score > existing.score) {
+        uniqueEntries.set(entry.name, entry);
+      }
+    });
+
+    this.leaderboard = Array.from(uniqueEntries.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+    
+    this.saveLeaderboard();
+  }
+
+  private saveLeaderboard(): void {
+    try {
+      localStorage.setItem('neo-breakout-leaderboard', JSON.stringify(this.leaderboard));
+    } catch {
+      // Silent fail
+    }
   }
 
   addScore(points: number, speedMultiplier: number = 1): void {
@@ -81,20 +107,30 @@ export class ScoreSystem {
   }
 
   public addToLeaderboard(name: string, score: number): void {
-    const entry: LeaderboardEntry = {
-      name,
-      score,
-      date: new Date().toLocaleDateString(),
-    };
-    this.leaderboard.push(entry);
+    const existingIndex = this.leaderboard.findIndex(e => e.name === name);
+    
+    if (existingIndex !== -1) {
+      if (score > this.leaderboard[existingIndex].score) {
+        this.leaderboard[existingIndex] = {
+          name,
+          score,
+          date: new Date().toLocaleDateString(),
+        };
+      } else {
+        // Current score is not better than the one already in leaderboard for this name
+        return;
+      }
+    } else {
+      this.leaderboard.push({
+        name,
+        score,
+        date: new Date().toLocaleDateString(),
+      });
+    }
+
     this.leaderboard.sort((a, b) => b.score - a.score);
     this.leaderboard = this.leaderboard.slice(0, 3);
-    
-    try {
-      localStorage.setItem('neo-breakout-leaderboard', JSON.stringify(this.leaderboard));
-    } catch {
-      // Silent fail
-    }
+    this.saveLeaderboard();
   }
 
   reset(): void {
