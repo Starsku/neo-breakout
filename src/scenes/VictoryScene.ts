@@ -77,11 +77,17 @@ export class VictoryScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Leaderboard or Input
+    this.checkLeaderboard(W / 2, 250);
+  }
+
+  private async checkLeaderboard(x: number, y: number): Promise<void> {
+    await this.scoreSystem.refreshLeaderboard();
+    
     if (this.scoreSystem.isTop3(this.score) && this.score > 0) {
-      this.showNameInput(W / 2, 280);
+      this.showNameInput(x, 280);
     } else {
-      this.showLeaderboard(W / 2, 250);
-      this.createNavigationButtons(W, H);
+      this.showLeaderboard(x, y);
+      this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
     }
   }
 
@@ -124,7 +130,6 @@ export class VictoryScene extends Phaser.Scene {
       repeat: -1
     });
 
-    // Simple keyboard handler
     const onKeyDown = (event: KeyboardEvent) => {
       if (!this.nameInputVisible) return;
 
@@ -133,21 +138,10 @@ export class VictoryScene extends Phaser.Scene {
       } else if (event.key === 'Enter' && playerName.length >= 3) {
         this.nameInputVisible = false;
         this.input.keyboard?.off('keydown', onKeyDown);
-        
-        // 1. Masquer l'input
         inputGroup.clear(true, true);
 
-        // 2. Afficher message de confirmation avec animation
-        const confirmText = this.add.text(x, y, 'Saving...', {
-          font: 'bold 24px Arial',
-          color: '#44ff88'
-        }).setOrigin(0.5);
-
         this.scoreSystem.addToLeaderboard(playerName, this.score).then(() => {
-          confirmText.destroy();
-          // 3. Afficher leaderboard mis à jour
           this.showLeaderboard(x, 250);
-          // 4. Réafficher boutons navigation
           this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
         });
       } else if (event.key.length === 1 && playerName.length < 10 && /[a-zA-Z0-9 ]/.test(event.key)) {
@@ -166,7 +160,6 @@ export class VictoryScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     const leaderboard = await this.scoreSystem.refreshLeaderboard();
-    
     title.setText('TOP 3 LEADERBOARD');
 
     if (leaderboard.length === 0) {
@@ -194,12 +187,10 @@ export class VictoryScene extends Phaser.Scene {
   }
 
   private createNavigationButtons(W: number, H: number): void {
-    // Play again
     this.createButton(W / 2, H - 130, 'PLAY AGAIN', GameConfig.COLORS.NEON_GREEN, () => {
       this.scene.start('MainScene');
     });
 
-    // Menu
     this.createButton(W / 2, H - 60, 'MENU', GameConfig.COLORS.NEON_BLUE, () => {
       this.scene.start('MenuScene');
     });
