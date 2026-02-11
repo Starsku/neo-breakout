@@ -162,47 +162,52 @@ export class MainScene extends Phaser.Scene {
     if (!(ball instanceof Ball) || !(brick instanceof Brick)) return;
 
     const isMega = ball.getMega();
-
-    if (!isMega) {
-      if (!brick.hit()) {
-        brick.destroy();
+    
+    // Get brick data BEFORE potentially destroying it
+    const brickType = brick.getType();
+    const brickX = brick.x;
+    const brickY = brick.y;
+    
+    // Hit the brick and check if it's destroyed
+    const isDestroyed = !brick.hit();
+    
+    if (isDestroyed) {
+      const points = brick.getPoints();
+      
+      // Destroy brick
+      brick.destroy();
+      
+      // Add score
+      this.scoreSystem.addScore(
+        points,
+        this.levelSystem.getSpeedMultiplier()
+      );
+      
+      // Spawn power-up if not indestructible
+      if (brickType !== 'indestructible') {
+        const powerUp = PowerUp.createRandom(this, brickX, brickY);
+        if (powerUp) {
+          this.powerUps?.add(powerUp);
+        }
+        
+        // Particle effect
+        this.createExplosionParticles(brickX, brickY, brickType);
       }
-      ball.accelerate(GameConfig.INTRA_LEVEL_ACCELERATION);
-    } else {
-      // Mega ball penetrates
-      ball.accelerate(GameConfig.INTRA_LEVEL_ACCELERATION);
-      if (!brick.hit()) {
-        brick.destroy();
+      
+      // Check if all bricks are destroyed
+      if (this.bricks && (this.bricks.children.entries.length === 0)) {
+        this.nextLevel();
       }
     }
-
-    const brickType = brick.getType();
-    const points = brick.getPoints();
-
+    
+    // Play sound
     this.audioSystem.playSoundEffect(
       brickType === 'armored' ? 'armor' : 'brick',
       this.scoreSystem.getCombo()
     );
-
-    this.scoreSystem.addScore(
-      points,
-      this.levelSystem.getSpeedMultiplier()
-    );
-
-    if (brickType !== 'indestructible' && !isMega) {
-      const powerUp = PowerUp.createRandom(this, brick.x, brick.y);
-      if (powerUp) {
-        this.powerUps?.add(powerUp);
-      }
-
-      // Particle effect
-      this.createExplosionParticles(brick.x, brick.y, brickType);
-    }
-
-    // Check if all bricks are destroyed
-    if (this.bricks && (this.bricks.children.entries.length === 0)) {
-      this.nextLevel();
-    }
+    
+    // Accelerate ball
+    ball.accelerate(GameConfig.INTRA_LEVEL_ACCELERATION);
   }
 
   private handlePowerUpCollision(paddle: any, powerUp: any): void {
