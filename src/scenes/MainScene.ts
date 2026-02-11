@@ -144,6 +144,10 @@ export class MainScene extends Phaser.Scene {
         this.updateLaunchHint(false);
         this.audioSystem.playSoundEffect('launch');
         this.scoreSystem.resetCombo();
+
+        // Consume one stick use or decrease timer if we wanted to limit it, 
+        // but typically sticky lasts for a duration. 
+        // Here we just let it be handled by the update loop timer.
         return;
       }
     }
@@ -300,6 +304,16 @@ export class MainScene extends Phaser.Scene {
 
   private onBallHitPaddle(ball: Ball, paddle: Paddle): void {
     if (ball.isStuckToPaddle()) return;
+
+    // Sticky powerup check
+    if (this.activePowerUps.has('sticky')) {
+      ball.stick(paddle.x);
+      this.waitingToLaunch = true;
+      this.updateLaunchHint(true);
+      this.audioSystem.playSoundEffect('paddle');
+      return;
+    }
+
     ball.handlePaddleCollision(paddle);
     this.scoreSystem.resetCombo();
     this.audioSystem.playSoundEffect('paddle', this.scoreSystem.getCombo());
