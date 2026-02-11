@@ -32,8 +32,10 @@ export default async function handler(request: Request) {
 
     if (method === 'POST') {
       const { name, score } = await request.json();
+      console.log('Received score submit:', { name, score });
       
       if (!name || score === undefined) {
+        console.warn('Invalid score data received');
         return new Response(JSON.stringify({ error: 'Missing name or score' }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },

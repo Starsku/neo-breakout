@@ -97,6 +97,7 @@ export class ScoreSystem {
 
   public async addToLeaderboard(name: string, score: number): Promise<void> {
     try {
+      console.log('Sending score to API...', { name, score });
       const response = await fetch('/api/scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,6 +105,9 @@ export class ScoreSystem {
       });
       if (response.ok) {
         this.leaderboard = await response.json();
+        console.log('Leaderboard updated after POST:', this.leaderboard);
+      } else {
+        console.error('API POST failed with status:', response.status);
       }
     } catch (error) {
       console.error('Failed to update leaderboard:', error);

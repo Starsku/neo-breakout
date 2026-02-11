@@ -102,38 +102,77 @@ export class GameOverScene extends Phaser.Scene {
     }).setOrigin(0.5);
     inputGroup.add(nameDisplay);
 
+    // Hidden HTML Input to trigger mobile keyboard
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'text';
+    hiddenInput.style.position = 'absolute';
+    hiddenInput.style.opacity = '0';
+    hiddenInput.style.pointerEvents = 'none';
+    hiddenInput.style.zIndex = '-1';
+    hiddenInput.maxLength = 10;
+    document.body.appendChild(hiddenInput);
+
+    const phaserDomElement = this.add.dom(x, y + 40, hiddenInput);
+    
+    // Focus the input to show the keyboard
+    hiddenInput.focus();
+    
+    const updateName = (val: string) => {
+      playerName = val.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
+      nameDisplay.setText(playerName + (playerName.length < 10 ? '_' : ''));
+    };
+
+    hiddenInput.addEventListener('input', (e) => {
+      updateName((e.target as HTMLInputElement).value);
+    });
+
     const submitBtn = this.add.text(x, y + 100, 'PRESS ENTER TO SAVE', {
       font: 'bold 16px Arial',
       color: '#888888'
     }).setOrigin(0.5);
     inputGroup.add(submitBtn);
-    
-    this.tweens.add({
-      targets: submitBtn,
-      alpha: 0.3,
-      duration: 500,
-      yoyo: true,
-      repeat: -1
-    });
+
+    const cleanup = () => {
+      this.nameInputVisible = false;
+      hiddenInput.remove();
+      phaserDomElement.destroy();
+    };
+
+    const submitScore = () => {
+      if (playerName.length < 3) return;
+      
+      console.log('Submitting score:', playerName, this.score);
+      cleanup();
+      this.input.keyboard?.off('keydown', onKeyDown);
+      inputGroup.clear(true, true);
+
+      const submittingText = this.add.text(x, 250, 'SUBMITTING...', {
+        font: 'bold 18px Arial',
+        color: '#ffee44',
+      }).setOrigin(0.5);
+
+      // Security: Sanitize name (already done by regex but extra safety)
+      const sanitizedName = playerName.replace(/<[^>]*>?/gm, '').trim();
+
+      this.scoreSystem.addToLeaderboard(sanitizedName, this.score).then(() => {
+        submittingText.destroy();
+        this.showLeaderboard(x, 250);
+        this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
+      }).catch(err => {
+        console.error('Submission error:', err);
+        submittingText.setText('SUBMISSION FAILED');
+        this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
+      });
+    };
+
+    // Neon Validation Button for Mobile
+    this.createButton(x, y + 150, 'VALIDATE', GameConfig.COLORS.NEON_GREEN, submitScore);
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (!this.nameInputVisible) return;
-
-      if (event.key === 'Backspace' && playerName.length > 0) {
-        playerName = playerName.slice(0, -1);
-      } else if (event.key === 'Enter' && playerName.length >= 3) {
-        this.nameInputVisible = false;
-        this.input.keyboard?.off('keydown', onKeyDown);
-        inputGroup.clear(true, true);
-
-        this.scoreSystem.addToLeaderboard(playerName, this.score).then(() => {
-          this.showLeaderboard(x, 250);
-          this.createNavigationButtons(GameConfig.WIDTH, GameConfig.HEIGHT);
-        });
-      } else if (event.key.length === 1 && playerName.length < 10 && /[a-zA-Z0-9 ]/.test(event.key)) {
-        playerName += event.key;
+      if (event.key === 'Enter') {
+        submitScore();
       }
-      nameDisplay.setText(playerName + (playerName.length < 10 ? '_' : ''));
     };
 
     this.input.keyboard?.on('keydown', onKeyDown);

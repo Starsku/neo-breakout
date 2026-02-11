@@ -8,7 +8,7 @@ import { VictoryScene } from './scenes/VictoryScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  parent: document.body,
+  parent: 'game-container',
   width: GameConfig.WIDTH,
   height: GameConfig.HEIGHT,
   backgroundColor: '#0a0a1a',
@@ -20,6 +20,9 @@ const config: Phaser.Types.Core.GameConfig = {
     },
   },
   scene: [MenuScene, MainScene, PauseScene, GameOverScene, VictoryScene],
+  dom: {
+    createContainer: true
+  },
   render: {
     pixelArt: false,
     antialias: true,
