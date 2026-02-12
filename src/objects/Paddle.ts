@@ -8,10 +8,11 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
 
   constructor(scene: Phaser.Scene) {
     const startX = GameConfig.WIDTH / 2;
-    // Position du personnage un peu plus bas pour qu'il soit bien visible
-    const startY = GameConfig.PADDLE_Y - 20;
+    const startY = GameConfig.PADDLE_Y;
 
     // Use the character sprite
+    // Image is 1080x1220 (but we resized it to ~500px high and cleaned noise).
+    // We want a visible character ~100px wide.
     super(scene, startX, startY, 'paddle-character');
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -19,17 +20,19 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.setImmovable(true);
     this.setDepth(5);
-    // Augmenter la taille pour bien voir le personnage (environ 100px de haut)
-    this.setScale(0.4); 
+    
+    // Scale calculation:
+    // Original width after clean: ~317px
+    // Target width: ~110px
+    // Scale: 110 / 317 = ~0.35
+    this.setScale(0.35);
+
     this.clearTint();
     this.setInteractive();
     
-    // Ensure pixel art stays sharp if low-res, or smooth if hi-res
-    // Given the 300kb file size, it might be high-res, so LINEAR might be better or keep NEAREST
-    // Let's assume it's a generated image that looks like pixel art.
+    // Use LINEAR filter for better quality
     this.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
     
-    // Adjust physics body to the head/shoulder area (the "paddle" part)
     this.updatePhysicsBody();
 
     // Keyboard setup
@@ -66,28 +69,30 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
   }
 
   private updatePhysicsBody(): void {
-    // La hitbox doit correspondre à la largeur visuelle du personnage
-    // et être située vers le haut pour le rebond de la balle
+    // We want the hit zone to match the character's visual width
+    // Visual width = ~92px (1080 * 0.085)
     
-    const visualWidth = this.width * this.scaleX;
+    // Use 85% of visual width for the hitbox to be forgiving
+    const hitWidth = (this.width * this.scaleX) * 0.85; 
     
-    // On garde une hitbox assez large pour le gameplay
-    // On utilise 80% de la largeur visuelle pour éviter les bords vides
-    const hitWidth = visualWidth * 0.8; 
-    const hitHeight = 20; // Épaisseur de la zone de rebond
-
+    // Height of the rebound zone (top of the head)
+    // We want a flat surface for the ball to bounce off
+    const hitHeight = 25; // pixels (scaled)
+    
+    // setSize takes UN-SCALED dimensions
     this.body!.setSize(hitWidth / this.scaleX, hitHeight / this.scaleY);
     
-    // Centrer la hitbox en haut du sprite (offset relatif à la texture non scalée)
-    // this.width est la largeur texture, this.body.width est la largeur physique scalée
-    // Offset X : (Largeur texture - Largeur physique non scalée) / 2
+    // Center the hitbox horizontally and place it at the top
     const offsetX = (this.width - (hitWidth / this.scaleX)) / 2;
-    const offsetY = 10; // Un peu en dessous du haut pour l'effet visuel
+    // We want the ball to bounce off the head/shoulders area
+    // The top of the sprite is at local Y=0
+    // Let's set the body offset to be near the top
+    const offsetY = 15; 
 
     this.body!.setOffset(offsetX, offsetY);
 
     // Update baseWidth for movement clamping based on current scale
-    this.baseWidth = hitWidth;
+    this.baseWidth = this.width * this.scaleX;
   }
 
   public updatePaddle(delta: number): void {
@@ -111,6 +116,6 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
   }
 
   public cleanUp(): void {
-    // No glow to destroy
+    // No glow to destroy anymore
   }
 }

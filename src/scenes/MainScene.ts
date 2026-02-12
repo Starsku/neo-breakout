@@ -234,7 +234,7 @@ export class MainScene extends Phaser.Scene {
       .setDepth(10);
 
     this.launchHint = this.add
-      .text(GameConfig.WIDTH / 2, GameConfig.HEIGHT - 50, '[ SPACE / CLICK to launch ]', {
+      .text(GameConfig.WIDTH / 2, GameConfig.HEIGHT - 120, '[ SPACE / CLICK to launch ]', {
         font: '14px Arial',
         color: '#888888',
       })
