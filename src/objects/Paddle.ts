@@ -5,11 +5,11 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
   private moveLeftActive: boolean = false;
   private moveRightActive: boolean = false;
   private baseWidth: number = GameConfig.PADDLE_WIDTH;
-  private glow: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene) {
     const startX = GameConfig.WIDTH / 2;
-    const startY = GameConfig.PADDLE_Y;
+    // Position du personnage un peu plus bas pour qu'il soit bien visible
+    const startY = GameConfig.PADDLE_Y - 20;
 
     // Use the character sprite
     super(scene, startX, startY, 'paddle-character');
@@ -19,18 +19,18 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.setImmovable(true);
     this.setDepth(5);
-    this.setScale(3);
+    // Augmenter la taille pour bien voir le personnage (environ 100px de haut)
+    this.setScale(0.4); 
     this.clearTint();
     this.setInteractive();
-    // Ensure pixel art stays sharp
-    this.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
     
-    // Adjust physics body to the head area (the "paddle" part)
+    // Ensure pixel art stays sharp if low-res, or smooth if hi-res
+    // Given the 300kb file size, it might be high-res, so LINEAR might be better or keep NEAREST
+    // Let's assume it's a generated image that looks like pixel art.
+    this.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    
+    // Adjust physics body to the head/shoulder area (the "paddle" part)
     this.updatePhysicsBody();
-
-    // Glow effect
-    this.glow = scene.add.graphics();
-    this.glow.setDepth(4);
 
     // Keyboard setup
     if (scene.input.keyboard) {
@@ -66,26 +66,28 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
   }
 
   private updatePhysicsBody(): void {
-    // We want the hit zone to be at the top of the character.
-    // The visual width is this.width * this.scaleX.
-    // The requested contact width should match the visual size of the paddle being carried.
-    // If the sprite width is 64 and scale is 1.8, visual width is 115.2.
-    // Let's use the full sprite width as the hitzone since it's a character.
+    // La hitbox doit correspondre à la largeur visuelle du personnage
+    // et être située vers le haut pour le rebond de la balle
     
     const visualWidth = this.width * this.scaleX;
-    const visualHeight = this.height * this.scaleY;
     
-    // We want the body to match the scaled visual size
-    // setSize takes values in the original sprite's coordinate system (before scale)
-    // so we set it to this.width and a portion of this.height for the top hitzone.
-    const bodyHeightInPixels = 3; // Épaisseur de la barre flottante dans le sprite
-    this.body!.setSize(this.width, bodyHeightInPixels);
+    // On garde une hitbox assez large pour le gameplay
+    // On utilise 80% de la largeur visuelle pour éviter les bords vides
+    const hitWidth = visualWidth * 0.8; 
+    const hitHeight = 20; // Épaisseur de la zone de rebond
+
+    this.body!.setSize(hitWidth / this.scaleX, hitHeight / this.scaleY);
     
-    // Offset pour que la zone de contact soit sur la barre (tout en haut du sprite)
-    this.body!.setOffset(0, 0);
+    // Centrer la hitbox en haut du sprite (offset relatif à la texture non scalée)
+    // this.width est la largeur texture, this.body.width est la largeur physique scalée
+    // Offset X : (Largeur texture - Largeur physique non scalée) / 2
+    const offsetX = (this.width - (hitWidth / this.scaleX)) / 2;
+    const offsetY = 10; // Un peu en dessous du haut pour l'effet visuel
+
+    this.body!.setOffset(offsetX, offsetY);
 
     // Update baseWidth for movement clamping based on current scale
-    this.baseWidth = visualWidth;
+    this.baseWidth = hitWidth;
   }
 
   public updatePaddle(delta: number): void {
@@ -97,18 +99,6 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     if (this.moveRightActive) {
       this.x = Math.min(GameConfig.WIDTH - this.baseWidth / 2 - 10, this.x + speed);
     }
-
-    // Update glow
-    this.glow.clear();
-    this.glow.fillStyle(GameConfig.COLORS.NEON_BLUE, 0.08);
-    // Glow around the head area
-    this.glow.fillRoundedRect(
-      this.x - this.baseWidth / 2 - 8,
-      this.y - this.displayHeight / 2 - 8,
-      this.baseWidth + 16,
-      GameConfig.PADDLE_HEIGHT + 16,
-      8
-    );
   }
 
   public getWidth(): number {
@@ -117,11 +107,10 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
 
   public reset(): void {
     this.x = GameConfig.WIDTH / 2;
-    this.baseWidth = GameConfig.PADDLE_WIDTH;
     this.updatePhysicsBody();
   }
 
   public cleanUp(): void {
-    this.glow.destroy();
+    // No glow to destroy
   }
 }
