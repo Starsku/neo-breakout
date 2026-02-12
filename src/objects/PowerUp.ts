@@ -1,11 +1,10 @@
 import Phaser from 'phaser';
 import { GameConfig } from '../config/GameConfig';
 
-export type PowerUpType = 'multiball' | 'sticky' | 'mega';
+export type PowerUpType = 'multiball' | 'mega';
 
 const POWERUP_INFO: Record<PowerUpType, { color: number; label: string }> = {
   multiball: { color: 0x44ff88, label: '×3' },
-  sticky: { color: 0x44aaff, label: '◎' },
   mega: { color: 0xffaa22, label: '★' },
 };
 
@@ -77,7 +76,7 @@ export class PowerUp extends Phaser.Physics.Arcade.Sprite {
       return null;
     }
 
-    const types: PowerUpType[] = ['multiball', 'sticky', 'mega'];
+    const types: PowerUpType[] = ['multiball', 'mega'];
     const randomType = types[Math.floor(Math.random() * types.length)];
     return new PowerUp(scene, x, y, randomType);
   }

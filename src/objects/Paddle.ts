@@ -19,6 +19,7 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.setImmovable(true);
     this.setDepth(5);
+    this.setScale(1.5);
     
     // Adjust physics body to the head area (the "paddle" part)
     // The sprite seems to be a character carrying something or just the character itself.
@@ -66,16 +67,15 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
 
   private updatePhysicsBody(): void {
     // We want the hit zone to be at the top of the character.
-    // Assuming the sprite's height is around this.height.
-    // We set the body height to PADDLE_HEIGHT and offset it to be at the top.
+    // The visual width is this.width * this.scaleX.
+    // The requested contact width is this.baseWidth (80).
     const bodyHeight = GameConfig.PADDLE_HEIGHT;
-    this.body!.setSize(this.baseWidth, bodyHeight);
+    this.body!.setSize(this.baseWidth / this.scaleX, bodyHeight / this.scaleY);
     
-    // Offset the body to the top of the sprite. 
-    // Sprite origin is usually 0.5, 0.5.
-    // If the sprite is 64px high, and we want the body (12px high) at the top:
-    // Offset Y would be 0.
-    this.body!.setOffset((this.width - this.baseWidth) / 2, 0);
+    // Offset calculation:
+    // (Actual sprite width - target body width) / 2
+    const offsetX = (this.width - (this.baseWidth / this.scaleX)) / 2;
+    this.body!.setOffset(offsetX, 0);
   }
 
   public updatePaddle(delta: number): void {

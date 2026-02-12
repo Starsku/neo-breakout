@@ -89,9 +89,6 @@ export class MainScene extends Phaser.Scene {
       this.handleLaunchOrFire();
     });
 
-    // Fullscreen support on double tap or specific button could be added, 
-    // but for now let's ensure the canvas fits the screen.
-
     // Collisions
     this.setupCollisions();
   }
@@ -158,10 +155,6 @@ export class MainScene extends Phaser.Scene {
         this.updateLaunchHint(false);
         this.audioSystem.playSoundEffect('launch');
         this.scoreSystem.resetCombo();
-
-        // Consume one stick use or decrease timer if we wanted to limit it, 
-        // but typically sticky lasts for a duration. 
-        // Here we just let it be handled by the update loop timer.
         return;
       }
     }
@@ -322,15 +315,6 @@ export class MainScene extends Phaser.Scene {
   private onBallHitPaddle(ball: Ball, paddle: Paddle): void {
     if (ball.isStuckToPaddle()) return;
 
-    // Sticky powerup check
-    if (this.activePowerUps.has('sticky')) {
-      ball.stick(paddle.x);
-      this.waitingToLaunch = true;
-      this.updateLaunchHint(true);
-      this.audioSystem.playSoundEffect('paddle');
-      return;
-    }
-
     ball.handlePaddleCollision(paddle);
     this.scoreSystem.resetCombo();
     this.audioSystem.playSoundEffect('paddle', this.scoreSystem.getCombo());
@@ -415,9 +399,6 @@ export class MainScene extends Phaser.Scene {
       case 'multiball':
         this.activateMultiball();
         break;
-      case 'sticky':
-        this.activateSticky();
-        break;
       case 'mega':
         this.balls.forEach((b) => b.setMega(GameConfig.POWERUP_DURATION));
         break;
@@ -438,11 +419,6 @@ export class MainScene extends Phaser.Scene {
         }
       }
     });
-  }
-
-  private activateSticky(): void {
-    // Next paddle hit will stick
-    this.activePowerUps.set('sticky', GameConfig.POWERUP_DURATION);
   }
 
   // ─────────── Particles (simple, compatible) ───────────
@@ -644,7 +620,6 @@ export class MainScene extends Phaser.Scene {
     this.activePowerUps.forEach((remaining, type) => {
       const secs = Math.ceil(remaining / 1000);
       const labels: Record<string, string> = {
-        sticky: `◎${secs}s`,
         mega: `★${secs}s`,
       };
       if (labels[type]) puTexts.push(labels[type]);
