@@ -19,7 +19,7 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.setImmovable(true);
     this.setDepth(5);
-    this.setScale(1.6);
+    this.setScale(3);
     this.clearTint();
     this.setInteractive();
     // Ensure pixel art stays sharp
