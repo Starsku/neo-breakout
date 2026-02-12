@@ -19,13 +19,12 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     this.setCollideWorldBounds(true);
     this.setImmovable(true);
     this.setDepth(5);
-    this.setScale(1.5);
+    this.setScale(1.8);
+    this.setInteractive();
+    // Ensure pixel art stays sharp
+    this.texture.setFilter(Phaser.Textures.FilterMode.NEAREST);
     
     // Adjust physics body to the head area (the "paddle" part)
-    // The sprite seems to be a character carrying something or just the character itself.
-    // Usually, we want the collision to happen at the top of the sprite.
-    // Assuming the sprite is ~64x64 or similar.
-    // We'll set the body to be GameConfig.PADDLE_WIDTH wide and a small height at the top.
     this.updatePhysicsBody();
 
     // Glow effect
@@ -68,14 +67,25 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
   private updatePhysicsBody(): void {
     // We want the hit zone to be at the top of the character.
     // The visual width is this.width * this.scaleX.
-    // The requested contact width is this.baseWidth (80).
-    const bodyHeight = GameConfig.PADDLE_HEIGHT;
-    this.body!.setSize(this.baseWidth / this.scaleX, bodyHeight / this.scaleY);
+    // The requested contact width should match the visual size of the paddle being carried.
+    // If the sprite width is 64 and scale is 1.8, visual width is 115.2.
+    // Let's use the full sprite width as the hitzone since it's a character.
     
-    // Offset calculation:
-    // (Actual sprite width - target body width) / 2
-    const offsetX = (this.width - (this.baseWidth / this.scaleX)) / 2;
-    this.body!.setOffset(offsetX, 0);
+    const visualWidth = this.width * this.scaleX;
+    const visualHeight = this.height * this.scaleY;
+    
+    // We want the body to match the scaled visual size
+    // setSize takes values in the original sprite's coordinate system (before scale)
+    // so we set it to this.width and a portion of this.height for the top hitzone.
+    const bodyHeightInPixels = 16; // The "hit" zone thickness in the original sprite
+    this.body!.setSize(this.width, bodyHeightInPixels);
+    
+    // Offset is also in original coordinates.
+    // 0,0 is top-left of the original sprite.
+    this.body!.setOffset(0, 0);
+
+    // Update baseWidth for movement clamping based on current scale
+    this.baseWidth = visualWidth;
   }
 
   public updatePaddle(delta: number): void {
