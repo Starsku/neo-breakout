@@ -78,11 +78,11 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     // We want the body to match the scaled visual size
     // setSize takes values in the original sprite's coordinate system (before scale)
     // so we set it to this.width and a portion of this.height for the top hitzone.
-    const bodyHeightInPixels = 8; // Zone de contact sur la barre
+    const bodyHeightInPixels = 3; // Épaisseur de la barre flottante dans le sprite
     this.body!.setSize(this.width, bodyHeightInPixels);
     
-    // Offset pour que la zone de contact soit sur la barre (en haut du sprite)
-    this.body!.setOffset(0, 4);
+    // Offset pour que la zone de contact soit sur la barre (tout en haut du sprite)
+    this.body!.setOffset(0, 0);
 
     // Update baseWidth for movement clamping based on current scale
     this.baseWidth = visualWidth;
