@@ -5,21 +5,20 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
   private moveLeftActive: boolean = false;
   private moveRightActive: boolean = false;
   private baseWidth: number = GameConfig.PADDLE_WIDTH;
+  private shirtFix: Phaser.GameObjects.Graphics;
 
   constructor(scene: Phaser.Scene) {
     const startX = GameConfig.WIDTH / 2;
     const startY = GameConfig.PADDLE_Y;
 
     // Use the character sprite
-    // Image is 1080x1220 (but we resized it to ~500px high and cleaned noise).
-    // We want a visible character ~100px wide.
     super(scene, startX, startY, 'paddle-character');
     scene.add.existing(this);
     scene.physics.add.existing(this);
 
     this.setCollideWorldBounds(true);
     this.setImmovable(true);
-    this.setDepth(5);
+    this.setDepth(10); // Paddle on top
     
     // Scale calculation:
     // Original width after clean: ~317px
@@ -28,44 +27,67 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     this.setScale(0.35);
 
     this.clearTint();
-    this.setInteractive();
+    this.setInteractive(); // For input handling if needed
     
     // Use LINEAR filter for better quality
     this.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
     
     this.updatePhysicsBody();
 
+    // VISUAL FIX: White background behind the shirt
+    // The shirt was transparent/noisy. We draw a solid white shape behind the sprite.
+    this.shirtFix = scene.add.graphics();
+    this.shirtFix.setDepth(9); // Behind the paddle
+    this.drawShirtFix();
+
     // Keyboard setup
     if (scene.input.keyboard) {
-      scene.input.keyboard.on('keydown-LEFT', () => (this.moveLeftActive = true));
-      scene.input.keyboard.on('keyup-LEFT', () => (this.moveLeftActive = false));
-      scene.input.keyboard.on('keydown-RIGHT', () => (this.moveRightActive = true));
-      scene.input.keyboard.on('keyup-RIGHT', () => (this.moveRightActive = false));
-
-      scene.input.keyboard.on('keydown-Q', () => (this.moveLeftActive = true));
-      scene.input.keyboard.on('keyup-Q', () => (this.moveLeftActive = false));
-      scene.input.keyboard.on('keydown-A', () => (this.moveLeftActive = true));
-      scene.input.keyboard.on('keyup-A', () => (this.moveLeftActive = false));
-      scene.input.keyboard.on('keydown-D', () => (this.moveRightActive = true));
-      scene.input.keyboard.on('keyup-D', () => (this.moveRightActive = false));
+      this.setupKeyboardInput(scene);
     }
 
     // Mouse/Touch
-    scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      this.x = Phaser.Math.Clamp(
-        pointer.x,
-        this.baseWidth / 2 + 10,
-        GameConfig.WIDTH - this.baseWidth / 2 - 10
-      );
-    });
+    this.setupPointerInput(scene);
+  }
 
-    scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+  private drawShirtFix(): void {
+    this.shirtFix.clear();
+    this.shirtFix.fillStyle(0xFFFFFF, 1);
+    
+    // Approximate size of the shirt area relative to the scaled sprite
+    // The sprite is centered. We need a rect or ellipse covering the torso.
+    // Width: ~60px, Height: ~80px, Offset Y: +20px from center
+    // These values are estimates based on standard character proportions
+    const w = 60;
+    const h = 90;
+    this.shirtFix.fillEllipse(0, 20, w, h); 
+  }
+
+  private setupKeyboardInput(scene: Phaser.Scene): void {
+      scene.input.keyboard!.on('keydown-LEFT', () => (this.moveLeftActive = true));
+      scene.input.keyboard!.on('keyup-LEFT', () => (this.moveLeftActive = false));
+      scene.input.keyboard!.on('keydown-RIGHT', () => (this.moveRightActive = true));
+      scene.input.keyboard!.on('keyup-RIGHT', () => (this.moveRightActive = false));
+
+      scene.input.keyboard!.on('keydown-Q', () => (this.moveLeftActive = true));
+      scene.input.keyboard!.on('keyup-Q', () => (this.moveLeftActive = false));
+      scene.input.keyboard!.on('keydown-A', () => (this.moveLeftActive = true));
+      scene.input.keyboard!.on('keyup-A', () => (this.moveLeftActive = false));
+      scene.input.keyboard!.on('keydown-D', () => (this.moveRightActive = true));
+      scene.input.keyboard!.on('keyup-D', () => (this.moveRightActive = false));
+  }
+
+  private setupPointerInput(scene: Phaser.Scene): void {
+    const onPointerMove = (pointer: Phaser.Input.Pointer) => {
+      // Allow moving all the way to the edge (remove the +10 buffer)
       this.x = Phaser.Math.Clamp(
         pointer.x,
-        this.baseWidth / 2 + 10,
-        GameConfig.WIDTH - this.baseWidth / 2 - 10
+        this.baseWidth / 2, 
+        GameConfig.WIDTH - this.baseWidth / 2
       );
-    });
+    };
+
+    scene.input.on('pointermove', onPointerMove);
+    scene.input.on('pointerdown', onPointerMove);
   }
 
   private updatePhysicsBody(): void {
@@ -98,12 +120,17 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
   public updatePaddle(delta: number): void {
     const speed = GameConfig.PADDLE_SPEED * (delta / 1000);
 
+    // Remove the +10 buffer to allow touching the walls
     if (this.moveLeftActive) {
-      this.x = Math.max(this.baseWidth / 2 + 10, this.x - speed);
+      this.x = Math.max(this.baseWidth / 2, this.x - speed);
     }
     if (this.moveRightActive) {
-      this.x = Math.min(GameConfig.WIDTH - this.baseWidth / 2 - 10, this.x + speed);
+      this.x = Math.min(GameConfig.WIDTH - this.baseWidth / 2, this.x + speed);
     }
+
+    // Sync the shirt fix position and visibility
+    this.shirtFix.setPosition(this.x, this.y);
+    this.shirtFix.setVisible(this.visible);
   }
 
   public getWidth(): number {
@@ -113,9 +140,12 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
   public reset(): void {
     this.x = GameConfig.WIDTH / 2;
     this.updatePhysicsBody();
+    this.shirtFix.setPosition(this.x, this.y);
   }
 
   public cleanUp(): void {
-    // No glow to destroy anymore
+    if (this.shirtFix) {
+      this.shirtFix.destroy();
+    }
   }
 }
