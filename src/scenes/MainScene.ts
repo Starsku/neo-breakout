@@ -121,7 +121,9 @@ export class MainScene extends Phaser.Scene {
 
   // ─────────── Ball Management ───────────
   private spawnBall(): void {
-    const ball = new Ball(this, this.paddle.x, GameConfig.PADDLE_Y - 20);
+    // Position ball on top of character's head
+    const ballY = this.paddle.y - (this.paddle.height * this.paddle.scaleY) / 2 - GameConfig.BALL_RADIUS;
+    const ball = new Ball(this, this.paddle.x, ballY);
     ball.stick(this.paddle.x);
     this.balls.push(ball);
     this.setupBallCollisions(ball);

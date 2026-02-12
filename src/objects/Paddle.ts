@@ -9,7 +9,8 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
 
   constructor(scene: Phaser.Scene) {
     const startX = GameConfig.WIDTH / 2;
-    const startY = GameConfig.PADDLE_Y;
+    // Move up by 30px to show feet and have a margin
+    const startY = GameConfig.PADDLE_Y - 30;
 
     // Use the character sprite
     super(scene, startX, startY, 'paddle-character');
@@ -24,7 +25,8 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     // Original width after clean: ~317px
     // Target width: ~110px
     // Scale: 110 / 317 = ~0.35
-    this.setScale(0.35);
+    // REDUCED by 15% as per client request (0.35 * 0.85 = ~0.2975)
+    this.setScale(0.2975);
 
     this.clearTint();
     this.setInteractive(); // For input handling if needed
@@ -53,13 +55,17 @@ export class Paddle extends Phaser.Physics.Arcade.Sprite {
     this.shirtFix.clear();
     this.shirtFix.fillStyle(0xFFFFFF, 1);
     
-    // Approximate size of the shirt area relative to the scaled sprite
-    // The sprite is centered. We need a rect or ellipse covering the torso.
-    // Width: ~60px, Height: ~80px, Offset Y: +20px from center
-    // These values are estimates based on standard character proportions
-    const w = 60;
-    const h = 90;
-    this.shirtFix.fillEllipse(0, 20, w, h); 
+    // Cover the entire upper body (torso + arms/sleeves)
+    // Main torso ellipse (centered)
+    const torsoW = 60;
+    const torsoH = 90;
+    this.shirtFix.fillEllipse(0, 20, torsoW, torsoH);
+    
+    // Left arm/sleeve (extend from torso)
+    this.shirtFix.fillEllipse(-35, 25, 40, 70);
+    
+    // Right arm/sleeve (extend from torso)
+    this.shirtFix.fillEllipse(35, 25, 40, 70);
   }
 
   private setupKeyboardInput(scene: Phaser.Scene): void {
